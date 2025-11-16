@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Box, Select, MenuItem, InputLabel, FormControl, IconButton, Typography, Divider } from '@mui/material';
+import AddCircleIcon from '@mui/icons-material/AddCircle';
+import DeleteIcon from '@mui/icons-material/Delete';
+
 
 interface Insumo { id: number; nome: string; unidade: string; }
 interface FichaTecnicaItem { insumoId: number; quantidade: number; }
