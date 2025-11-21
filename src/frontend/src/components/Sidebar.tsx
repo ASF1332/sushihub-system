@@ -25,42 +25,44 @@ export function Sidebar() {
             sx={{
                 width: 240,
                 height: '100vh',
-                backgroundColor: '#1e293b',
-                color: 'white',
+                backgroundColor: '#000000',
+                color: '#f5f5f5', // Também usando a cor do tema
                 display: 'flex',
                 flexDirection: 'column',
                 flexShrink: 0,
-                // ADICIONADO: Faz a sidebar "grudar" no topo da tela
                 position: 'sticky',
                 top: 0,
-                alignSelf: 'flex-start', // Garante o alinhamento correto
+                alignSelf: 'flex-start',
             }}
         >
             <Box sx={{ p: 2, textAlign: 'center' }}>
-                <Typography variant="h5" component="h1">
+                <img
+                    src="/LOGO_TAKASHI.PNG"
+                    alt="Logo Takashi Sushi"
+                    style={{ width: '100px', height: 'auto', marginBottom: '8px' }}
+                />
+                <Typography variant="h6" component="h1" sx={{ fontWeight: 'bold' }}>
                     Takashi Sushi
                 </Typography>
             </Box>
+
             <Divider sx={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
             <List>
                 {menuItems.map((item) => {
-                    // Verificamos se o caminho do item corresponde à localização atual
                     const isActive = location.pathname === item.path;
 
                     return (
-                        // O componente Link do react-router-dom envolve nosso botão
                         <Link to={item.path} key={item.text} style={{ textDecoration: 'none', color: 'inherit' }}>
                             <ListItem disablePadding>
                                 <ListItemButton
                                     sx={{
-                                        // Aplicamos o estilo de fundo vermelho se o item estiver ativo
-                                        backgroundColor: isActive ? '#ef4444' : 'transparent',
+                                        backgroundColor: isActive ? 'primary.main' : 'transparent',
                                         '&:hover': {
-                                            backgroundColor: isActive ? '#ef4444' : 'rgba(255, 255, 255, 0.08)',
+                                            backgroundColor: isActive ? 'primary.dark' : 'rgba(255, 255, 255, 0.08)',
                                         },
                                     }}
                                 >
-                                    <ListItemIcon sx={{ color: 'white' }}>
+                                    <ListItemIcon sx={{ color: '#f5f5f5' }}>
                                         {item.icon}
                                     </ListItemIcon>
                                     <ListItemText primary={item.text} />

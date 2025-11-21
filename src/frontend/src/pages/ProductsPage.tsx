@@ -185,7 +185,7 @@ export function ProductsPage() {
                                         <TableCell>{produto.nome}</TableCell>
                                         <TableCell>{produto.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                                         <TableCell align="right">
-                                            <IconButton size="small" color="primary" onClick={() => handleEdit(produto)}><EditIcon /></IconButton>
+                                            <IconButton size="small" color="secondary" onClick={() => handleEdit(produto)}><EditIcon /></IconButton>
                                             <IconButton size="small" color="error" onClick={() => handleDelete(produto.id)}><DeleteIcon /></IconButton>
                                         </TableCell>
                                     </TableRow>

@@ -7,14 +7,19 @@ const port = 3001;
 app.use(cors());
 app.use(express.json());
 
-// --- TIPOS DE DADOS ---
+// --- TIPOS DE DADOS UNIFICADOS ---
 interface Pedido { id: number; cliente: string; canal: string; status: string; valor: number; }
 interface Cliente { id: number; nome: string; telefone: string; cep: string; logradouro: string; numero: string; bairro: string; cidade: string; uf: string; complemento?: string; }
-interface Insumo { id: number; nome: string; unidade: 'g' | 'ml' | 'un'; }
+interface Insumo {
+    id: number;
+    nome: string;
+    categoria: string;
+    unidade?: 'kg' | 'g' | 'L' | 'ml' | 'un';
+    estoque?: number;
+}
 interface Produto { id: number; nome: string; preco: number; categoria: string; fichaTecnica: { insumoId: number; quantidade: number; }[]; }
 
 // --- BANCO DE DADOS FALSO ---
-
 const mockPedidos: Pedido[] = [
     { id: 101, cliente: 'Ana Silva', canal: 'iFood', status: 'Em Preparo', valor: 95.50 },
     { id: 102, cliente: 'Bruno Costa', canal: 'WhatsApp', status: 'Aguardando Confirmação', valor: 78.00 },
@@ -25,12 +30,91 @@ let mockClientes: Cliente[] = [
     { id: 2, nome: 'Bruno Costa', telefone: '(21) 91234-5678', cep: '20040-001', logradouro: 'Avenida Rio Branco', numero: '456', bairro: 'Centro', cidade: 'Rio de Janeiro', uf: 'RJ', complemento: '' },
 ];
 
-const mockInsumos: Insumo[] = [
-    { id: 1, nome: 'Salmão', unidade: 'g' },
-    { id: 2, nome: 'Arroz de Sushi', unidade: 'g' },
-    { id: 3, nome: 'Alga Nori', unidade: 'un' },
-    { id: 4, nome: 'Cream Cheese', unidade: 'g' },
-    { id: 5, nome: 'Shoyu', unidade: 'ml' },
+let mockInsumos: Insumo[] = [
+    // Cozinha
+    { id: 1, nome: 'Gás P13', categoria: 'Cozinha', unidade: 'un', estoque: 2 },
+    { id: 2, nome: 'Gás maçarico', categoria: 'Cozinha', unidade: 'un', estoque: 3 },
+    { id: 3, nome: 'Bombril', categoria: 'Cozinha', unidade: 'un', estoque: 10 },
+    { id: 4, nome: 'Esponja louça', categoria: 'Cozinha', unidade: 'un', estoque: 20 },
+    { id: 5, nome: 'Detergente', categoria: 'Cozinha', unidade: 'L', estoque: 5 },
+    { id: 6, nome: 'Sabão em pó', categoria: 'Cozinha', unidade: 'kg', estoque: 2 },
+    { id: 7, nome: 'Clorofila', categoria: 'Cozinha', unidade: 'L', estoque: 5 },
+    { id: 8, nome: 'Desinfetante', categoria: 'Cozinha', unidade: 'L', estoque: 5 },
+    { id: 9, nome: 'Desingordurante', categoria: 'Cozinha', unidade: 'L', estoque: 3 },
+    { id: 10, nome: 'Álcool', categoria: 'Cozinha', unidade: 'L', estoque: 5 },
+    { id: 11, nome: 'Saco de lixo 100lts', categoria: 'Cozinha', unidade: 'un', estoque: 50 },
+    { id: 12, nome: 'Saco de lixo 15lts', categoria: 'Cozinha', unidade: 'un', estoque: 100 },
+    { id: 13, nome: 'Papel toalha', categoria: 'Cozinha', unidade: 'un', estoque: 30 },
+    { id: 14, nome: 'Papel higiênico', categoria: 'Cozinha', unidade: 'un', estoque: 40 },
+    { id: 15, nome: 'Grampo', categoria: 'Cozinha', unidade: 'un', estoque: 100 },
+
+    // Embalagens
+    { id: 16, nome: 'Rolo perflex', categoria: 'Embalagens', unidade: 'un', estoque: 5 },
+    { id: 17, nome: 'Rolo insulfilme', categoria: 'Embalagens', unidade: 'un', estoque: 5 },
+    { id: 18, nome: 'Molheira', categoria: 'Embalagens', unidade: 'un', estoque: 500 },
+    { id: 19, nome: 'Hashi', categoria: 'Embalagens', unidade: 'un', estoque: 1000 },
+    { id: 20, nome: 'Saco Porção 1kg', categoria: 'Embalagens', unidade: 'un', estoque: 200 },
+    { id: 21, nome: 'Saco kraft grande', categoria: 'Embalagens', unidade: 'un', estoque: 300 },
+    { id: 22, nome: 'Saco kraft pequeno', categoria: 'Embalagens', unidade: 'un', estoque: 300 },
+    { id: 23, nome: 'Embalagem termica HF04', categoria: 'Embalagens', unidade: 'un', estoque: 150 },
+    { id: 24, nome: 'Embalagem térmica HF05', categoria: 'Embalagens', unidade: 'un', estoque: 150 },
+    { id: 25, nome: 'Embalagem Poke', categoria: 'Embalagens', unidade: 'un', estoque: 100 },
+    { id: 26, nome: 'Caixa sushi Grande', categoria: 'Embalagens', unidade: 'un', estoque: 100 },
+    { id: 27, nome: 'Caixa sushi média', categoria: 'Embalagens', unidade: 'un', estoque: 100 },
+    { id: 28, nome: 'Caixa sushi pequena', categoria: 'Embalagens', unidade: 'un', estoque: 100 },
+    { id: 29, nome: 'Potinho porção', categoria: 'Embalagens', unidade: 'un', estoque: 200 },
+    { id: 30, nome: 'Bobina impressora', categoria: 'Embalagens', unidade: 'un', estoque: 10 },
+
+    // Insumos
+    { id: 31, nome: 'Salmão', categoria: 'Insumos', unidade: 'kg', estoque: 10 },
+    { id: 32, nome: 'Kani', categoria: 'Insumos', unidade: 'kg', estoque: 2 },
+    { id: 33, nome: 'Camarão', categoria: 'Insumos', unidade: 'kg', estoque: 3 },
+    { id: 34, nome: 'Cream cheese', categoria: 'Insumos', unidade: 'kg', estoque: 4 },
+    { id: 35, nome: 'Alga Nori', categoria: 'Insumos', unidade: 'un', estoque: 100 },
+    { id: 36, nome: 'Shoyu sachê', categoria: 'Insumos', unidade: 'un', estoque: 1000 },
+    { id: 37, nome: 'Tarê sachê', categoria: 'Insumos', unidade: 'un', estoque: 1000 },
+    { id: 38, nome: 'Tarê galão 5L', categoria: 'Insumos', unidade: 'L', estoque: 5 },
+    { id: 39, nome: 'Geleia Pimenta 5L', categoria: 'Insumos', unidade: 'L', estoque: 5 },
+    { id: 40, nome: 'Hondashi', categoria: 'Insumos', unidade: 'g', estoque: 500 },
+    { id: 41, nome: 'Gergelim mix', categoria: 'Insumos', unidade: 'g', estoque: 1000 },
+    { id: 42, nome: 'Gengibre', categoria: 'Insumos', unidade: 'kg', estoque: 1 },
+    { id: 43, nome: 'Wasabi', categoria: 'Insumos', unidade: 'g', estoque: 300 },
+    { id: 44, nome: 'Farinha trigo', categoria: 'Insumos', unidade: 'kg', estoque: 5 },
+    { id: 45, nome: 'Açúcar', categoria: 'Insumos', unidade: 'kg', estoque: 5 },
+    { id: 46, nome: 'Arroz japonês', categoria: 'Insumos', unidade: 'kg', estoque: 25 },
+    { id: 47, nome: 'Tempero arroz', categoria: 'Insumos', unidade: 'L', estoque: 5 },
+    { id: 48, nome: 'Farinha Panko', categoria: 'Insumos', unidade: 'kg', estoque: 2 },
+    { id: 49, nome: 'Azeite', categoria: 'Insumos', unidade: 'L', estoque: 2 },
+    { id: 50, nome: 'Chocolate forneavel', categoria: 'Insumos', unidade: 'kg', estoque: 1 },
+    { id: 51, nome: 'Café', categoria: 'Insumos', unidade: 'kg', estoque: 1 },
+    { id: 52, nome: 'Erva mate', categoria: 'Insumos', unidade: 'kg', estoque: 1 },
+
+    // Hortifruti
+    { id: 53, nome: 'Morango', categoria: 'Hortifruti', unidade: 'kg', estoque: 1 },
+    { id: 54, nome: 'Banana', categoria: 'Hortifruti', unidade: 'kg', estoque: 2 },
+    { id: 55, nome: 'Cebolinha', categoria: 'Hortifruti', unidade: 'g', estoque: 500 },
+    { id: 56, nome: 'Alho Poró', categoria: 'Hortifruti', unidade: 'g', estoque: 500 },
+    { id: 57, nome: 'Couve', categoria: 'Hortifruti', unidade: 'un', estoque: 5 },
+    { id: 58, nome: 'Batata doce', categoria: 'Hortifruti', unidade: 'kg', estoque: 2 },
+    { id: 59, nome: 'Limão', categoria: 'Hortifruti', unidade: 'kg', estoque: 1 },
+    { id: 60, nome: 'Alface', categoria: 'Hortifruti', unidade: 'un', estoque: 4 },
+    { id: 61, nome: 'Pepino japonês', categoria: 'Hortifruti', unidade: 'kg', estoque: 2 },
+    { id: 62, nome: 'Cebola roxa', categoria: 'Hortifruti', unidade: 'kg', estoque: 1 },
+    { id: 63, nome: 'Manga', categoria: 'Hortifruti', unidade: 'kg', estoque: 2 },
+    { id: 64, nome: 'Abacate', categoria: 'Hortifruti', unidade: 'kg', estoque: 1 },
+    { id: 65, nome: 'Tomate cereja', categoria: 'Hortifruti', unidade: 'g', estoque: 500 },
+
+    // Bebidas
+    { id: 66, nome: 'Água com gás', categoria: 'Bebidas', unidade: 'un', estoque: 24 },
+    { id: 67, nome: 'Águas sem gás', categoria: 'Bebidas', unidade: 'un', estoque: 24 },
+    { id: 68, nome: 'Coca lata', categoria: 'Bebidas', unidade: 'un', estoque: 48 },
+    { id: 69, nome: 'Coca lata zero', categoria: 'Bebidas', unidade: 'un', estoque: 24 },
+    { id: 70, nome: 'Guaraná lata', categoria: 'Bebidas', unidade: 'un', estoque: 48 },
+    { id: 71, nome: 'Guaraná lata zero', categoria: 'Bebidas', unidade: 'un', estoque: 24 },
+    { id: 72, nome: 'Coca 2 litros', categoria: 'Bebidas', unidade: 'un', estoque: 12 },
+    { id: 73, nome: 'Coca zero 2 litros', categoria: 'Bebidas', unidade: 'un', estoque: 12 },
+    { id: 74, nome: 'Guaraná 2 litros', categoria: 'Bebidas', unidade: 'un', estoque: 12 },
+    { id: 75, nome: 'Guaraná zero 2 litros', categoria: 'Bebidas', unidade: 'un', estoque: 12 },
 ];
 
 let mockProdutos: Produto[] = [
@@ -171,8 +255,34 @@ app.delete('/api/clientes/:id', (req: Request, res: Response) => {
     res.status(204).send();
 });
 
-// Rotas de Insumos
+// Rotas de Insumos (UMA ÚNICA ROTA CORRETA)
 app.get('/api/insumos', (_req: Request, res: Response) => res.json(mockInsumos));
+
+// Rota para CRIAR um novo insumo (POST)
+app.post('/api/insumos', (req: Request, res: Response) => {
+    // 1. Pega o ID do último insumo na lista para gerar um novo ID.
+    // Se a lista estiver vazia, começa com ID 0.
+    const ultimoId = mockInsumos.length > 0 ? mockInsumos[mockInsumos.length - 1].id : 0;
+    const novoId = ultimoId + 1;
+
+    // 2. Cria um objeto completo para o novo insumo, combinando:
+    //    - O novo ID que acabamos de gerar.
+    //    - Os dados que o frontend enviou (que estão em req.body).
+    const novoInsumo: Insumo = {
+        id: novoId,
+        nome: req.body.nome,
+        estoque: req.body.estoque,
+        unidade: req.body.unidade,
+        categoria: req.body.categoria
+    };
+
+    // 3. Adiciona o novo insumo ao final do nosso array 'mockInsumos'.
+    mockInsumos.push(novoInsumo);
+
+    // 4. Responde para o frontend com o status 201 (que significa "Criado com Sucesso")
+    //    e envia de volta o objeto do insumo que foi salvo (agora com o ID).
+    res.status(201).json(novoInsumo);
+});
 
 // Rotas de Produtos (COMPLETAS)
 app.get('/api/produtos', (_req: Request, res: Response) => res.json(mockProdutos));
@@ -182,6 +292,28 @@ app.post('/api/produtos', (req: Request, res: Response) => {
     mockProdutos.push(produtoSalvo);
     res.status(201).json(produtoSalvo);
 });
+
+// Rota para ATUALIZAR um insumo (PUT)
+app.put('/api/insumos/:id', (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    const index = mockInsumos.findIndex(i => i.id === id);
+
+    if (index !== -1) {
+        // Atualiza o insumo no array com os novos dados
+        mockInsumos[index] = { ...mockInsumos[index], ...req.body };
+        res.json(mockInsumos[index]);
+    } else {
+        res.status(404).json({ message: 'Insumo não encontrado' });
+    }
+});
+
+// Rota para DELETAR um insumo (DELETE)
+app.delete('/api/insumos/:id', (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    mockInsumos = mockInsumos.filter(i => i.id !== id);
+    res.status(204).send(); // 204 significa "sucesso, sem conteúdo para retornar"
+});
+
 app.put('/api/produtos/:id', (req: Request, res: Response) => {
     const id = parseInt(req.params.id, 10);
     const index = mockProdutos.findIndex(p => p.id === id);
