@@ -16,6 +16,7 @@ interface Insumo {
     categoria: string;
     unidade?: 'kg' | 'g' | 'L' | 'ml' | 'un';
     estoque?: number;
+    estoqueMinimo?: number;
 }
 interface Produto { id: number; nome: string; preco: number; categoria: string; fichaTecnica: { insumoId: number; quantidade: number; }[]; }
 
@@ -272,6 +273,7 @@ app.post('/api/insumos', (req: Request, res: Response) => {
         id: novoId,
         nome: req.body.nome,
         estoque: req.body.estoque,
+        estoqueMinimo: req.body.estoqueMinimo,
         unidade: req.body.unidade,
         categoria: req.body.categoria
     };
@@ -330,6 +332,45 @@ app.delete('/api/produtos/:id', (req: Request, res: Response) => {
     res.status(204).send();
 });
 
+app.post('/api/pedidos', (req: Request, res: Response) => {
+    const itensDoPedido = req.body.itens; // O frontend vai mandar: [{ produtoId: 1, quantidade: 1 }, ...]
+
+    // 1. VALIDAR E ABATER ESTOQUE
+    // Vamos percorrer cada produto do pedido
+    for (const item of itensDoPedido) {
+        const produto = mockProdutos.find(p => p.id === item.produtoId);
+
+        if (produto) {
+            // Para cada produto, olhamos a ficha técnica
+            for (const ingrediente of produto.fichaTecnica) {
+                const insumoNoEstoque = mockInsumos.find(i => i.id === ingrediente.insumoId);
+
+                if (insumoNoEstoque && insumoNoEstoque.estoque !== undefined) {
+                    // O PULO DO GATO: Subtração
+                    // Quantidade no pedido * Quantidade na receita
+                    const quantidadeTotalDescontar = item.quantidade * ingrediente.quantidade;
+
+                    insumoNoEstoque.estoque -= quantidadeTotalDescontar;
+
+                    console.log(`Baixa de estoque: ${insumoNoEstoque.nome} -${quantidadeTotalDescontar}${insumoNoEstoque.unidade}. Novo saldo: ${insumoNoEstoque.estoque}`);
+                }
+            }
+        }
+    }
+
+    // 2. CRIAR O PEDIDO VISUALMENTE
+    const novoPedido: Pedido = {
+        id: Date.now(), // Gera um ID único baseado no tempo
+        cliente: req.body.clienteNome || "Cliente Balcão",
+        canal: req.body.canal || "Local",
+        status: "Recebido",
+        valor: req.body.valorTotal
+    };
+
+    mockPedidos.push(novoPedido); // Salva na lista de pedidos para aparecer na tela "Pedidos"
+
+    res.status(201).json({ mensagem: "Pedido criado e estoque atualizado!", pedido: novoPedido });
+});
 
 // --- INICIALIZAÇÃO DO SERVIDOR ---
 app.listen(port, () => {

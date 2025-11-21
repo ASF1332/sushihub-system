@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Select, MenuItem, InputLabel, FormControl } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Select, MenuItem, InputLabel, FormControl, Box } from '@mui/material';
 
-// Interface completa do Insumo
 interface Insumo {
     id: number;
     nome: string;
     categoria: string;
     unidade?: 'kg' | 'g' | 'L' | 'ml' | 'un';
     estoque?: number;
+    estoqueMinimo?: number; // <-- Novo campo
 }
 type InsumoData = Omit<Insumo, 'id'>;
 
@@ -15,15 +15,14 @@ interface InsumoModalProps {
     open: boolean;
     onClose: () => void;
     onSave: (insumo: InsumoData | Insumo) => void;
-    insumoToEdit?: Insumo | null; // <-- NOVO: Prop para receber o insumo a ser editado
+    insumoToEdit?: Insumo | null;
 }
 
-const emptyInsumo: InsumoData = { nome: '', estoque: 0, unidade: 'g', categoria: 'Insumos' };
+const emptyInsumo: InsumoData = { nome: '', estoque: 0, estoqueMinimo: 5, unidade: 'un', categoria: 'Cozinha' };
 
 export function InsumoModal({ open, onClose, onSave, insumoToEdit }: InsumoModalProps) {
     const [insumoData, setInsumoData] = useState<InsumoData | Insumo>(emptyInsumo);
 
-    // Efeito para preencher o formulário quando estiver editando
     useEffect(() => {
         if (insumoToEdit) {
             setInsumoData(insumoToEdit);
@@ -43,11 +42,15 @@ export function InsumoModal({ open, onClose, onSave, insumoToEdit }: InsumoModal
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            {/* Título dinâmico */}
             <DialogTitle>{insumoToEdit ? 'Editar Insumo' : 'Novo Insumo'}</DialogTitle>
             <DialogContent sx={{ pt: '20px !important' }}>
                 <TextField autoFocus name="nome" label="Nome do Insumo" fullWidth value={insumoData.nome} onChange={handleChange} sx={{ mb: 2 }} />
-                <TextField name="estoque" label="Estoque" type="number" fullWidth value={insumoData.estoque || ''} onChange={handleChange} sx={{ mb: 2 }} />
+
+                {/* Colocamos Estoque e Estoque Mínimo lado a lado */}
+                <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                    <TextField name="estoque" label="Estoque Atual" type="number" fullWidth value={insumoData.estoque || ''} onChange={handleChange} />
+                    <TextField name="estoqueMinimo" label="Estoque Mínimo" type="number" fullWidth value={insumoData.estoqueMinimo || ''} onChange={handleChange} helperText="Avisa quando baixar disso" />
+                </Box>
 
                 <FormControl fullWidth sx={{ mb: 2 }}>
                     <InputLabel>Unidade</InputLabel>
