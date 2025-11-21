@@ -8,6 +8,7 @@ import { Dashboard } from './components/Dashboard.tsx';
 import { ClientsPage } from './pages/ClientsPage.tsx';
 import { ProductsPage } from './pages/ProductsPage.tsx';
 import { InsumosPage } from './pages/InsumosPage.tsx';
+import { PedidosPage } from './pages/PedidosPage.tsx';
 
 const customTheme = createTheme({
     palette: {
@@ -60,6 +61,10 @@ const router = createBrowserRouter([
             {
                 path: 'insumos',
                 element: <InsumosPage />,
+            },
+            {
+                path: 'pedidos',
+                element: <PedidosPage />,
             },
         ],
     },

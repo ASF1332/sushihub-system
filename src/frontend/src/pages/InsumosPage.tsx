@@ -7,11 +7,13 @@ import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { InsumoModal } from '../components/InsumoModal';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
+import { useLocation } from 'react-router-dom';
 
 interface Insumo { id: number; nome: string; categoria: string; unidade?: string; estoque?: number; estoqueMinimo?: number; }
 type InsumoData = Omit<Insumo, 'id'>;
 
 export function InsumosPage() {
+    const location = useLocation();
     const [insumos, setInsumos] = useState<Insumo[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -48,6 +50,11 @@ export function InsumosPage() {
         }
     }, [highlightedInsumoId, selectedCategory]);
 
+    useEffect(() => {
+        // Sempre que a localização mudar (alguém clicou em Insumos no menu),
+        // limpamos a categoria selecionada para voltar aos cards.
+        setSelectedCategory(null);
+    }, [location]);
 
     // --- LÓGICA DE DADOS ---
     const insumosPorCategoria = useMemo(() => insumos.reduce((acc, insumo) => {

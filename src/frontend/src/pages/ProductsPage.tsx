@@ -6,12 +6,14 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { ProductModal } from '../components/ProductModal';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
+import { useLocation } from 'react-router-dom';
 
 interface FichaTecnicaItem { insumoId: number; quantidade: number; }
 interface Produto { id: number; nome: string; preco: number; categoria: string; fichaTecnica: FichaTecnicaItem[]; }
 type NewProductData = Omit<Produto, 'id'>;
 
 export function ProductsPage() {
+    const location = useLocation();
     const [produtos, setProdutos] = useState<Produto[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -23,13 +25,16 @@ export function ProductsPage() {
 
     useEffect(() => {
         setLoading(true);
-        // ALTERAÇÃO 1: Trocamos o endereço fixo pela variável de ambiente
         fetch(`${import.meta.env.VITE_API_URL}/api/produtos`)
             .then(response => response.json())
             .then(data => setProdutos(data))
             .catch(() => setError("Não foi possível carregar os produtos."))
             .finally(() => setLoading(false));
     }, []);
+
+    useEffect(() => {
+        setSelectedCategory(null);
+    }, [location]);
 
     const categories = useMemo(() => {
         if (loading) return [];

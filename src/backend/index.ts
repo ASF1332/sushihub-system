@@ -8,7 +8,17 @@ app.use(cors());
 app.use(express.json());
 
 // --- TIPOS DE DADOS UNIFICADOS ---
-interface Pedido { id: number; cliente: string; canal: string; status: string; valor: number; }
+interface Pedido {
+    id: number;
+    cliente: string;
+    telefone?: string;
+    canal: 'iFood' | 'WhatsApp' | 'OlaClick' | 'Local';
+    status: 'Novo' | 'Em Preparo' | 'Saiu para Entrega' | 'Entregue' | 'Cancelado';
+    valor: number;
+    itens: { produtoId: number; quantidade: number; nomeProduto?: string }[];
+    dataHora: string;
+}
+
 interface Cliente { id: number; nome: string; telefone: string; cep: string; logradouro: string; numero: string; bairro: string; cidade: string; uf: string; complemento?: string; }
 interface Insumo {
     id: number;
@@ -21,9 +31,18 @@ interface Insumo {
 interface Produto { id: number; nome: string; preco: number; categoria: string; fichaTecnica: { insumoId: number; quantidade: number; }[]; }
 
 // --- BANCO DE DADOS FALSO ---
-const mockPedidos: Pedido[] = [
-    { id: 101, cliente: 'Ana Silva', canal: 'iFood', status: 'Em Preparo', valor: 95.50 },
-    { id: 102, cliente: 'Bruno Costa', canal: 'WhatsApp', status: 'Aguardando Confirmação', valor: 78.00 },
+
+let mockPedidos: Pedido[] = [
+    {
+        id: 101,
+        cliente: 'Ana Silva',
+        canal: 'iFood',
+        status: 'Novo',
+        valor: 95.50,
+        telefone: '11999999999',
+        dataHora: new Date().toISOString(),
+        itens: [] // Começa vazio ou com algum item de exemplo se quiser
+    }
 ];
 
 let mockClientes: Cliente[] = [
@@ -333,43 +352,50 @@ app.delete('/api/produtos/:id', (req: Request, res: Response) => {
 });
 
 app.post('/api/pedidos', (req: Request, res: Response) => {
-    const itensDoPedido = req.body.itens; // O frontend vai mandar: [{ produtoId: 1, quantidade: 1 }, ...]
+    const itensDoPedido = req.body.itens || [];
 
     // 1. VALIDAR E ABATER ESTOQUE
     // Vamos percorrer cada produto do pedido
     for (const item of itensDoPedido) {
         const produto = mockProdutos.find(p => p.id === item.produtoId);
-
         if (produto) {
-            // Para cada produto, olhamos a ficha técnica
             for (const ingrediente of produto.fichaTecnica) {
                 const insumoNoEstoque = mockInsumos.find(i => i.id === ingrediente.insumoId);
-
                 if (insumoNoEstoque && insumoNoEstoque.estoque !== undefined) {
-                    // O PULO DO GATO: Subtração
-                    // Quantidade no pedido * Quantidade na receita
-                    const quantidadeTotalDescontar = item.quantidade * ingrediente.quantidade;
-
-                    insumoNoEstoque.estoque -= quantidadeTotalDescontar;
-
-                    console.log(`Baixa de estoque: ${insumoNoEstoque.nome} -${quantidadeTotalDescontar}${insumoNoEstoque.unidade}. Novo saldo: ${insumoNoEstoque.estoque}`);
+                    insumoNoEstoque.estoque -= (item.quantidade * ingrediente.quantidade);
                 }
             }
         }
     }
 
-    // 2. CRIAR O PEDIDO VISUALMENTE
+    // --- CRIAÇÃO DO PEDIDO ---
     const novoPedido: Pedido = {
-        id: Date.now(), // Gera um ID único baseado no tempo
-        cliente: req.body.clienteNome || "Cliente Balcão",
-        canal: req.body.canal || "Local",
-        status: "Recebido",
-        valor: req.body.valorTotal
+        id: req.body.id || Date.now(), // O n8n pode mandar o ID do iFood se quiser
+        cliente: req.body.cliente,
+        telefone: req.body.telefone,
+        canal: req.body.canal || 'Local',
+        status: 'Novo', // Todo pedido chega como Novo
+        valor: req.body.valor,
+        itens: itensDoPedido,
+        dataHora: new Date().toISOString()
     };
 
-    mockPedidos.push(novoPedido); // Salva na lista de pedidos para aparecer na tela "Pedidos"
+    mockPedidos.push(novoPedido);
+    res.status(201).json(novoPedido);
+});
 
-    res.status(201).json({ mensagem: "Pedido criado e estoque atualizado!", pedido: novoPedido });
+// Rota para ATUALIZAR STATUS (Mover no Kanban)
+app.put('/api/pedidos/:id/status', (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    const novoStatus = req.body.status;
+    const pedido = mockPedidos.find(p => p.id === id);
+
+    if (pedido) {
+        pedido.status = novoStatus;
+        res.json(pedido);
+    } else {
+        res.status(404).json({ message: 'Pedido não encontrado' });
+    }
 });
 
 // --- INICIALIZAÇÃO DO SERVIDOR ---
