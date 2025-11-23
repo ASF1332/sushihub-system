@@ -398,6 +398,40 @@ app.put('/api/pedidos/:id/status', (req: Request, res: Response) => {
     }
 });
 
+// Rota para EXCLUIR um pedido (DELETE) com opção de devolver estoque
+app.delete('/api/pedidos/:id', (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    // Verificamos se o frontend mandou "true" na URL
+    const devolverEstoque = req.query.devolverEstoque === 'true';
+
+    if (devolverEstoque) {
+        const pedido = mockPedidos.find(p => p.id === id);
+        if (pedido) {
+            console.log(`Devolvendo estoque do pedido #${id}...`);
+            // Percorre os itens do pedido para devolver
+            pedido.itens.forEach(itemPedido => {
+                const produto = mockProdutos.find(p => p.id === itemPedido.produtoId);
+                if (produto) {
+                    // Percorre a receita do produto
+                    produto.fichaTecnica.forEach(ingrediente => {
+                        const insumo = mockInsumos.find(i => i.id === ingrediente.insumoId);
+                        if (insumo && insumo.estoque !== undefined) {
+                            // AQUI A MÁGICA: SOMA de volta ao estoque
+                            const qtdDevolver = itemPedido.quantidade * ingrediente.quantidade;
+                            insumo.estoque += qtdDevolver;
+                        }
+                    });
+                }
+            });
+        }
+    }
+
+    // Remove o pedido da lista
+    mockPedidos = mockPedidos.filter(p => p.id !== id);
+
+    res.status(204).send();
+});
+
 // --- INICIALIZAÇÃO DO SERVIDOR ---
 app.listen(port, () => {
     console.log(`✅ Servidor Backend está rodando em http://localhost:${port}`);

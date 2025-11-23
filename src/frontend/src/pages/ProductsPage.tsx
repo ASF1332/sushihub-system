@@ -179,9 +179,9 @@ export function ProductsPage() {
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>Nome do Produto</TableCell>
-                                    <TableCell>Preço</TableCell>
-                                    <TableCell align="right">Ações</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Nome do Produto</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Preço</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
