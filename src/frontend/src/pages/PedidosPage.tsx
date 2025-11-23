@@ -41,8 +41,9 @@ export function PedidosPage() {
         return () => clearInterval(interval);
     }, []);
 
+    // --- CORREÇÃO AQUI: Removido o "/status" do final da URL ---
     const atualizarStatus = (id: number, novoStatus: string) => {
-        fetch(`${import.meta.env.VITE_API_URL}/api/pedidos/${id}/status`, {
+        fetch(`${import.meta.env.VITE_API_URL}/api/pedidos/${id}`, { // <--- URL CORRIGIDA
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: novoStatus })

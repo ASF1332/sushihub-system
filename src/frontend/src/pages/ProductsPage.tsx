@@ -1,5 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, IconButton, CircularProgress, Snackbar, Alert } from '@mui/material';
+import {
+    Box,
+    Paper,
+    Typography,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Button,
+    IconButton,
+    CircularProgress,
+    Snackbar,
+    Alert
+} from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -8,9 +23,16 @@ import { ProductModal } from '../components/ProductModal';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { useLocation } from 'react-router-dom';
 
+// Tipagem
 interface FichaTecnicaItem { insumoId: number; quantidade: number; }
-interface Produto { id: number; nome: string; preco: number; categoria: string; fichaTecnica: FichaTecnicaItem[]; }
-type NewProductData = Omit<Produto, 'id'>;
+interface Produto {
+    id: number;
+    nome: string;
+    preco: number;
+    categoria: string;
+    fichaTecnica: FichaTecnicaItem[];
+}
+export type NewProductData = Omit<Produto, 'id'>;
 
 export function ProductsPage() {
     const location = useLocation();
@@ -23,6 +45,7 @@ export function ProductsPage() {
     const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; productId: number | null }>({ open: false, productId: null });
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' } | null>(null);
 
+    // 1. Buscar Produtos
     useEffect(() => {
         setLoading(true);
         fetch(`${import.meta.env.VITE_API_URL}/api/produtos`)
@@ -32,10 +55,12 @@ export function ProductsPage() {
             .finally(() => setLoading(false));
     }, []);
 
+    // Resetar categoria ao mudar de rota
     useEffect(() => {
         setSelectedCategory(null);
     }, [location]);
 
+    // 2. Agrupar Categorias (Cards)
     const categories = useMemo(() => {
         if (loading) return [];
         const productsByCategory = produtos.reduce((acc, product) => {
@@ -51,16 +76,17 @@ export function ProductsPage() {
         }));
     }, [produtos, loading]);
 
+    // 3. Filtrar Produtos da Categoria Selecionada
     const filteredProducts = useMemo(() => {
         if (!selectedCategory) return [];
         return produtos.filter(p => p.categoria === selectedCategory);
     }, [produtos, selectedCategory]);
 
+    // --- AÇÕES ---
     const handleDelete = (id: number) => setDeleteConfirm({ open: true, productId: id });
 
     const confirmDelete = () => {
         if (deleteConfirm.productId) {
-            // ALTERAÇÃO 2: Trocamos o endereço fixo pela variável de ambiente
             fetch(`${import.meta.env.VITE_API_URL}/api/produtos/${deleteConfirm.productId}`, { method: 'DELETE' })
                 .then(response => {
                     if (response.ok) {
@@ -86,13 +112,19 @@ export function ProductsPage() {
 
     const handleSave = (productData: NewProductData | Produto) => {
         const isEditing = 'id' in productData;
-        // ALTERAÇÃO 3: Trocamos o endereço fixo pela variável de ambiente
-        const url = isEditing ? `${import.meta.env.VITE_API_URL}/api/produtos/${productData.id}` : `${import.meta.env.VITE_API_URL}/api/produtos`;
+        const url = isEditing
+            ? `${import.meta.env.VITE_API_URL}/api/produtos/${productData.id}`
+            : `${import.meta.env.VITE_API_URL}/api/produtos`;
         const method = isEditing ? 'PUT' : 'POST';
 
-        fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productData) })
+        fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(productData)
+        })
             .then(res => res.json())
             .then(savedProduct => {
+                // Atualiza a lista localmente para não precisar recarregar
                 if (isEditing) {
                     setProdutos(prev => prev.map(p => p.id === savedProduct.id ? savedProduct : p));
                 } else {
@@ -105,11 +137,7 @@ export function ProductsPage() {
     };
 
     if (loading) {
-        return (
-            <Box sx={{ p: 3, flexGrow: 1, display: 'flex', justifyContent: 'center', mt: 4 }}>
-                <CircularProgress />
-            </Box>
-        );
+        return <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>;
     }
 
     if (error) {
@@ -118,31 +146,33 @@ export function ProductsPage() {
 
     return (
         <Box sx={{ p: 3, flexGrow: 1 }}>
+            {/* Cabeçalho */}
             {selectedCategory ? (
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => setSelectedCategory(null)}>
-                        Voltar para Categorias
+                        Voltar
                     </Button>
-                    <Typography variant="h4" gutterBottom>{selectedCategory}</Typography>
+                    <Typography variant="h4">{selectedCategory}</Typography>
                     <Button variant="contained" startIcon={<AddIcon />} onClick={handleNew}>
                         Novo Produto
                     </Button>
                 </Box>
             ) : (
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h4" gutterBottom>
-                        Categorias de Produtos
-                    </Typography>
+                    <Typography variant="h4">Categorias de Produtos</Typography>
+                    {/* Botão de Novo Produto também na tela de categorias */}
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={handleNew}>
+                        Novo Produto
+                    </Button>
                 </Box>
             )}
 
+            {/* Visualização: Cards de Categoria OU Tabela de Produtos */}
             {!selectedCategory ? (
-                <Box sx={{
-                    display: 'grid',
-                    gap: 3,
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-                    mt: 4,
-                }}>
+                <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', mt: 4 }}>
+                    {categories.length === 0 && (
+                        <Typography color="text.secondary">Nenhum produto cadastrado.</Typography>
+                    )}
                     {categories.map(category => (
                         <Paper
                             key={category.name}
@@ -151,23 +181,13 @@ export function ProductsPage() {
                                 p: 2,
                                 cursor: 'pointer',
                                 boxShadow: 3,
-                                transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-                                '&:hover': {
-                                    transform: 'translateY(-5px)',
-                                    boxShadow: 6,
-                                },
-                                display: 'flex',
-                                flexDirection: 'column',
-                                justifyContent: 'space-between',
-                                minHeight: '120px',
+                                transition: 'transform 0.2s',
+                                '&:hover': { transform: 'translateY(-5px)', boxShadow: 6 },
+                                display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px'
                             }}
                         >
-                            <Typography variant="h6" align="left">{category.name}</Typography>
-                            <Typography
-                                color="text.primary"
-                                fontWeight="bold"
-                                align="right"
-                            >
+                            <Typography variant="h6">{category.name}</Typography>
+                            <Typography fontWeight="bold" align="right">
                                 {category.count} {category.count > 1 ? 'produtos' : 'produto'}
                             </Typography>
                         </Paper>
@@ -179,7 +199,7 @@ export function ProductsPage() {
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell sx={{ fontWeight: 'bold' }}>Nome do Produto</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Nome</TableCell>
                                     <TableCell sx={{ fontWeight: 'bold' }}>Preço</TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
                                 </TableRow>
@@ -202,13 +222,15 @@ export function ProductsPage() {
             )}
 
             <ProductModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} productToEdit={editingProduct} />
+
             <ConfirmationDialog
                 open={deleteConfirm.open}
                 onClose={() => setDeleteConfirm({ open: false, productId: null })}
                 onConfirm={confirmDelete}
                 title="Confirmar Exclusão"
-                message="Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita."
+                message="Tem certeza que deseja excluir este produto?"
             />
+
             {snackbar && (
                 <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
                     <Alert onClose={() => setSnackbar(null)} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>

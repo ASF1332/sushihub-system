@@ -1,14 +1,17 @@
 import { Box } from '@mui/material';
 import { Sidebar } from './components/Sidebar';
-import { Outlet } from 'react-router-dom'; // Importe o Outlet
-
-// A linha 'import { InsumosPage } from './pages/InsumosPage';' FOI REMOVIDA
+import { Outlet } from 'react-router-dom';
 
 function App() {
     return (
         <Box sx={{ display: 'flex' }}>
+            {/* Sidebar Fixa */}
             <Sidebar />
-            <Outlet />
+
+            {/* O Outlet é onde as páginas (Insumos, Financeiro, etc) serão renderizadas */}
+            <Box component="main" sx={{ flexGrow: 1, bgcolor: '#f5f5f5', minHeight: '100vh' }}>
+                <Outlet />
+            </Box>
         </Box>
     );
 }

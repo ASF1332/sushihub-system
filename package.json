@@ -7,11 +7,9 @@
     "dev:backend": "ts-node-dev src/backend/index.ts",
     "dev:frontend": "npm run dev --prefix src/frontend",
     "dev": "concurrently --kill-others-on-fail \"npm:dev:*\"",
-
     "build:frontend": "npm run build --prefix src/frontend",
     "build:backend": "tsc --project tsconfig.backend.json",
     "build": "npm run build:frontend && npm run build:backend",
-
     "start": "node dist/backend/index.js"
   },
   "keywords": [],
@@ -19,14 +17,18 @@
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "recharts": "^3.4.1"
   },
   "devDependencies": {
+    "@prisma/client": "^5.22.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
-    "@types/node": "^20.12.12",
+    "@types/node": "^20.19.25",
     "concurrently": "^8.2.2",
+    "prisma": "^5.22.0",
+    "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.9.3"
   }
 }

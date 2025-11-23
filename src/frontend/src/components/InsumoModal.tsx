@@ -1,15 +1,28 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Select, MenuItem, InputLabel, FormControl, Box } from '@mui/material';
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    Button,
+    Select,
+    MenuItem,
+    InputLabel,
+    FormControl,
+    Box
+} from '@mui/material';
 
-interface Insumo {
+// Exportamos as interfaces para poder usar na Página também se precisar
+export interface Insumo {
     id: number;
     nome: string;
     categoria: string;
-    unidade?: 'kg' | 'g' | 'L' | 'ml' | 'un';
+    unidade?: string; // Removi a restrição estrita para evitar erros se o banco tiver algo diferente
     estoque?: number;
-    estoqueMinimo?: number; // <-- Novo campo
+    estoqueMinimo?: number;
 }
-type InsumoData = Omit<Insumo, 'id'>;
+export type InsumoData = Omit<Insumo, 'id'>;
 
 interface InsumoModalProps {
     open: boolean;
@@ -18,7 +31,13 @@ interface InsumoModalProps {
     insumoToEdit?: Insumo | null;
 }
 
-const emptyInsumo: InsumoData = { nome: '', estoque: 0, estoqueMinimo: 5, unidade: 'un', categoria: 'Cozinha' };
+const emptyInsumo: InsumoData = {
+    nome: '',
+    estoque: 0,
+    estoqueMinimo: 5,
+    unidade: 'un',
+    categoria: 'Cozinha'
+};
 
 export function InsumoModal({ open, onClose, onSave, insumoToEdit }: InsumoModalProps) {
     const [insumoData, setInsumoData] = useState<InsumoData | Insumo>(emptyInsumo);
@@ -31,9 +50,16 @@ export function InsumoModal({ open, onClose, onSave, insumoToEdit }: InsumoModal
         }
     }, [insumoToEdit, open]);
 
-    const handleChange = (event: any) => {
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
         const { name, value } = event.target;
-        setInsumoData(prev => ({ ...prev, [name!]: value }));
+
+        setInsumoData(prev => ({
+            ...prev,
+            // AQUI ESTÁ O PULO DO GATO: Se for campo numérico, converte para Number
+            [name as string]: (name === 'estoque' || name === 'estoqueMinimo')
+                ? Number(value)
+                : value
+        }));
     };
 
     const handleSaveClick = () => {
@@ -44,33 +70,67 @@ export function InsumoModal({ open, onClose, onSave, insumoToEdit }: InsumoModal
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
             <DialogTitle>{insumoToEdit ? 'Editar Insumo' : 'Novo Insumo'}</DialogTitle>
             <DialogContent sx={{ pt: '20px !important' }}>
-                <TextField autoFocus name="nome" label="Nome do Insumo" fullWidth value={insumoData.nome} onChange={handleChange} sx={{ mb: 2 }} />
+                <TextField
+                    autoFocus
+                    name="nome"
+                    label="Nome do Insumo"
+                    fullWidth
+                    value={insumoData.nome}
+                    onChange={handleChange}
+                    sx={{ mb: 2 }}
+                />
 
-                {/* Colocamos Estoque e Estoque Mínimo lado a lado */}
                 <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                    <TextField name="estoque" label="Estoque Atual" type="number" fullWidth value={insumoData.estoque || ''} onChange={handleChange} />
-                    <TextField name="estoqueMinimo" label="Estoque Mínimo" type="number" fullWidth value={insumoData.estoqueMinimo || ''} onChange={handleChange} helperText="Avisa quando baixar disso" />
+                    <TextField
+                        name="estoque"
+                        label="Estoque Atual"
+                        type="number"
+                        fullWidth
+                        value={insumoData.estoque}
+                        onChange={handleChange}
+                    />
+                    <TextField
+                        name="estoqueMinimo"
+                        label="Estoque Mínimo"
+                        type="number"
+                        fullWidth
+                        value={insumoData.estoqueMinimo}
+                        onChange={handleChange}
+                        helperText="Alerta quando baixar disso"
+                    />
                 </Box>
 
                 <FormControl fullWidth sx={{ mb: 2 }}>
                     <InputLabel>Unidade</InputLabel>
-                    <Select name="unidade" value={insumoData.unidade || ''} onChange={handleChange} label="Unidade">
-                        <MenuItem value="g">Gramas (g)</MenuItem>
-                        <MenuItem value="kg">Quilogramas (kg)</MenuItem>
-                        <MenuItem value="ml">Mililitros (ml)</MenuItem>
-                        <MenuItem value="L">Litros (L)</MenuItem>
+                    <Select
+                        name="unidade"
+                        value={insumoData.unidade || 'un'}
+                        onChange={handleChange}
+                        label="Unidade"
+                    >
                         <MenuItem value="un">Unidade (un)</MenuItem>
+                        <MenuItem value="kg">Quilogramas (kg)</MenuItem>
+                        <MenuItem value="g">Gramas (g)</MenuItem>
+                        <MenuItem value="L">Litros (L)</MenuItem>
+                        <MenuItem value="ml">Mililitros (ml)</MenuItem>
                     </Select>
                 </FormControl>
 
                 <FormControl fullWidth>
                     <InputLabel>Categoria</InputLabel>
-                    <Select name="categoria" value={insumoData.categoria} onChange={handleChange} label="Categoria">
+                    <Select
+                        name="categoria"
+                        value={insumoData.categoria || 'Cozinha'}
+                        onChange={handleChange}
+                        label="Categoria"
+                    >
                         <MenuItem value="Cozinha">Cozinha</MenuItem>
                         <MenuItem value="Embalagens">Embalagens</MenuItem>
-                        <MenuItem value="Insumos">Insumos</MenuItem>
+                        <MenuItem value="Insumos">Insumos (Geral)</MenuItem>
                         <MenuItem value="Hortifruti">Hortifruti</MenuItem>
                         <MenuItem value="Bebidas">Bebidas</MenuItem>
+                        <MenuItem value="Peixes">Peixes</MenuItem>
+                        <MenuItem value="Grãos">Grãos</MenuItem>
                     </Select>
                 </FormControl>
             </DialogContent>

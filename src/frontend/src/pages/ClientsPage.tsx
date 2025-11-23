@@ -31,9 +31,16 @@ export function ClientsPage() {
     }, []);
 
     const filteredClientes = useMemo(() => {
-        return clientes.filter(cliente =>
-            cliente.nome.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        return clientes.filter(cliente => {
+            // PROTEÇÃO: Se vier nulo do banco, usa string vazia ''
+            const nome = cliente.nome || '';
+            const telefone = cliente.telefone || '';
+            const termo = searchTerm.toLowerCase();
+
+            // Busca por nome OU telefone
+            return nome.toLowerCase().includes(termo) ||
+                telefone.includes(termo);
+        });
     }, [clientes, searchTerm]);
 
     const handleDelete = (id: number) => {
