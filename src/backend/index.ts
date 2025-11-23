@@ -167,7 +167,7 @@ app.get('/api/pedidos', async (req, res) => {
 app.post('/api/pedidos', async (req, res) => {
     const { cliente, telefone, canal, valor, itens } = req.body;
     try {
-        const resultado = await prisma.$transaction(async (tx) => {
+        const resultado = await prisma.$transaction(async (tx: any) => {
             const novoPedido = await tx.pedido.create({
                 data: {
                     cliente,
@@ -238,7 +238,7 @@ app.delete('/api/pedidos/:id', async (req, res) => {
     const devolverEstoque = req.query.devolverEstoque === 'true'; // Lê o parâmetro da URL
 
     try {
-        await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx: any) => {
             // 1. Se for para devolver, precisamos ver o que tinha no pedido ANTES de deletar
             if (devolverEstoque) {
                 const pedido = await tx.pedido.findUnique({
