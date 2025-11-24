@@ -240,7 +240,7 @@ export function InsumosPage() {
     };
 
     return (
-        <Box sx={{ p: 3, width: '100%' }}>
+        <Box sx={{ p: 3, maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2 }}>
                 {selectedCategory && (
                     <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => setSelectedCategory(null)}>Voltar</Button>

@@ -143,7 +143,7 @@ export function ClientsPage() {
                                         <TableCell>{cliente.telefone}</TableCell>
                                         <TableCell>{`${cliente.logradouro}, ${cliente.numero} - ${cliente.bairro}`}</TableCell>
                                         <TableCell align="right">
-                                            <IconButton size="small" color="primary" onClick={() => handleEdit(cliente)}><EditIcon /></IconButton>
+                                            <IconButton size="small" color="secondary" onClick={() => handleEdit(cliente)}><EditIcon /></IconButton>
                                             <IconButton size="small" color="error" onClick={() => handleDelete(cliente.id)}><DeleteIcon /></IconButton>
                                         </TableCell>
                                     </TableRow>
