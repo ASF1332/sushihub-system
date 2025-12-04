@@ -1,11 +1,27 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, IconButton, TextField, CircularProgress, Snackbar, Alert } from '@mui/material';
+import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, IconButton, TextField, CircularProgress, Snackbar, Alert, Chip, InputAdornment } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
+import PersonIcon from '@mui/icons-material/Person';
 import { ClientModal } from '../components/ClientModal';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
-import type { Cliente, NewClientData } from '../components/ClientModal';
+
+// Definição da Interface (igual ao modal)
+export interface Cliente {
+    id: number;
+    nome: string;
+    telefone: string;
+    cep?: string;
+    logradouro?: string;
+    numero?: string;
+    bairro?: string;
+    cidade?: string;
+    estado?: string;
+    complemento?: string;
+}
+export type NewClientData = Omit<Cliente, 'id'>;
 
 export function ClientsPage() {
     const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -19,7 +35,6 @@ export function ClientsPage() {
 
     useEffect(() => {
         setLoading(true);
-        // ALTERAÇÃO 1: Trocamos o endereço fixo pela variável de ambiente
         fetch(`${import.meta.env.VITE_API_URL}/api/clientes`)
             .then(response => response.json())
             .then(data => setClientes(data))
@@ -32,14 +47,10 @@ export function ClientsPage() {
 
     const filteredClientes = useMemo(() => {
         return clientes.filter(cliente => {
-            // PROTEÇÃO: Se vier nulo do banco, usa string vazia ''
             const nome = cliente.nome || '';
             const telefone = cliente.telefone || '';
             const termo = searchTerm.toLowerCase();
-
-            // Busca por nome OU telefone
-            return nome.toLowerCase().includes(termo) ||
-                telefone.includes(termo);
+            return nome.toLowerCase().includes(termo) || telefone.includes(termo);
         });
     }, [clientes, searchTerm]);
 
@@ -49,7 +60,6 @@ export function ClientsPage() {
 
     const confirmDelete = () => {
         if (deleteConfirm.clientId) {
-            // ALTERAÇÃO 2: Trocamos o endereço fixo pela variável de ambiente
             fetch(`${import.meta.env.VITE_API_URL}/api/clientes/${deleteConfirm.clientId}`, { method: 'DELETE' })
                 .then(response => {
                     if (response.ok) {
@@ -76,7 +86,6 @@ export function ClientsPage() {
 
     const handleSave = (clientData: NewClientData | Cliente) => {
         const isEditing = 'id' in clientData;
-        // ALTERAÇÃO 3: Trocamos o endereço fixo pela variável de ambiente
         const url = isEditing ? `${import.meta.env.VITE_API_URL}/api/clientes/${clientData.id}` : `${import.meta.env.VITE_API_URL}/api/clientes`;
         const method = isEditing ? 'PUT' : 'POST';
 
@@ -97,24 +106,40 @@ export function ClientsPage() {
             });
     };
 
-    const handleSnackbarClose = () => {
-        setSnackbar(null);
-    };
-
     return (
         <Box sx={{ p: 3, flexGrow: 1 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h4" gutterBottom>Gestão de Clientes</Typography>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={handleNew}>Novo Cliente</Button>
+            {/* CABEÇALHO COM TOTAL */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="h4" fontWeight="bold">Gestão de Clientes</Typography>
+                    <Chip
+                        icon={<PersonIcon />}
+                        label={`${clientes.length} cadastrados`}
+                        color="primary"
+                        variant="outlined"
+                        sx={{ fontWeight: 'bold' }}
+                    />
+                </Box>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={handleNew}>
+                    Novo Cliente
+                </Button>
             </Box>
 
-            <Paper sx={{ p: 2, mb: 2 }}>
+            {/* BARRA DE BUSCA */}
+            <Paper sx={{ p: 2, mb: 3 }} elevation={1}>
                 <TextField
                     fullWidth
                     variant="outlined"
-                    label="Buscar por nome..."
+                    placeholder="Buscar por nome ou telefone..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon color="action" />
+                            </InputAdornment>
+                        ),
+                    }}
                 />
             </Paper>
 
@@ -125,29 +150,36 @@ export function ClientsPage() {
                     <CircularProgress />
                 </Box>
             ) : (
-                <Paper sx={{ mt: 2 }}>
+                <Paper sx={{ mt: 2, borderRadius: 2, overflow: 'hidden' }} elevation={2}>
                     <TableContainer>
                         <Table>
-                            <TableHead>
+                            <TableHead sx={{ bgcolor: '#f5f5f5' }}>
                                 <TableRow>
-                                    <TableCell>Nome</TableCell>
-                                    <TableCell>Telefone</TableCell>
-                                    <TableCell>Endereço Principal</TableCell>
-                                    <TableCell align="right">Ações</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Nome</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Telefone</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Endereço Principal</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {filteredClientes.map((cliente) => (
-                                    <TableRow key={cliente.id}>
+                                    <TableRow key={cliente.id} hover>
                                         <TableCell>{cliente.nome}</TableCell>
                                         <TableCell>{cliente.telefone}</TableCell>
-                                        <TableCell>{`${cliente.logradouro}, ${cliente.numero} - ${cliente.bairro}`}</TableCell>
+                                        <TableCell>{cliente.logradouro ? `${cliente.logradouro}, ${cliente.numero} - ${cliente.bairro}` : '-'}</TableCell>
                                         <TableCell align="right">
                                             <IconButton size="small" color="secondary" onClick={() => handleEdit(cliente)}><EditIcon /></IconButton>
                                             <IconButton size="small" color="error" onClick={() => handleDelete(cliente.id)}><DeleteIcon /></IconButton>
                                         </TableCell>
                                     </TableRow>
                                 ))}
+                                {filteredClientes.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={4} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                                            Nenhum cliente encontrado.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </TableContainer>
@@ -163,8 +195,8 @@ export function ClientsPage() {
                 message="Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita."
             />
             {snackbar && (
-                <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleSnackbarClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-                    <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+                <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+                    <Alert onClose={() => setSnackbar(null)} severity={snackbar.severity} sx={{ width: '100%' }}>
                         {snackbar.message}
                     </Alert>
                 </Snackbar>

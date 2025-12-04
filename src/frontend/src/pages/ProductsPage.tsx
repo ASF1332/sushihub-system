@@ -1,29 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-    Box,
-    Paper,
-    Typography,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Button,
-    IconButton,
-    CircularProgress,
-    Snackbar,
-    Alert
+    Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, IconButton, CircularProgress, Snackbar, Alert, Chip, TextField, InputAdornment
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SearchIcon from '@mui/icons-material/Search';
+import RestaurantIcon from '@mui/icons-material/Restaurant';
 import { ProductModal } from '../components/ProductModal';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { useLocation } from 'react-router-dom';
 
-// Tipagem
 interface FichaTecnicaItem { insumoId: number; quantidade: number; }
 interface Produto {
     id: number;
@@ -40,12 +28,12 @@ export function ProductsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; productId: number | null }>({ open: false, productId: null });
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' } | null>(null);
 
-    // 1. Buscar Produtos
     useEffect(() => {
         setLoading(true);
         fetch(`${import.meta.env.VITE_API_URL}/api/produtos`)
@@ -55,34 +43,32 @@ export function ProductsPage() {
             .finally(() => setLoading(false));
     }, []);
 
-    // Resetar categoria ao mudar de rota
     useEffect(() => {
         setSelectedCategory(null);
+        setSearchTerm('');
     }, [location]);
 
-    // 2. Agrupar Categorias (Cards)
     const categories = useMemo(() => {
         if (loading) return [];
         const productsByCategory = produtos.reduce((acc, product) => {
-            if (!acc[product.categoria]) {
-                acc[product.categoria] = 0;
-            }
+            if (!acc[product.categoria]) acc[product.categoria] = 0;
             acc[product.categoria]++;
             return acc;
         }, {} as Record<string, number>);
-        return Object.entries(productsByCategory).map(([name, count]) => ({
-            name,
-            count,
-        }));
+        return Object.entries(productsByCategory).map(([name, count]) => ({ name, count }));
     }, [produtos, loading]);
 
-    // 3. Filtrar Produtos da Categoria Selecionada
+    // Lógica de Filtro Inteligente
     const filteredProducts = useMemo(() => {
-        if (!selectedCategory) return [];
-        return produtos.filter(p => p.categoria === selectedCategory);
-    }, [produtos, selectedCategory]);
+        if (searchTerm) {
+            return produtos.filter(p => p.nome.toLowerCase().includes(searchTerm.toLowerCase()));
+        }
+        if (selectedCategory) {
+            return produtos.filter(p => p.categoria === selectedCategory);
+        }
+        return [];
+    }, [produtos, selectedCategory, searchTerm]);
 
-    // --- AÇÕES ---
     const handleDelete = (id: number) => setDeleteConfirm({ open: true, productId: id });
 
     const confirmDelete = () => {
@@ -100,96 +86,80 @@ export function ProductsPage() {
         }
     };
 
-    const handleEdit = (produto: Produto) => {
-        setEditingProduct(produto);
-        setIsModalOpen(true);
-    };
-
-    const handleNew = () => {
-        setEditingProduct(null);
-        setIsModalOpen(true);
-    };
+    const handleEdit = (produto: Produto) => { setEditingProduct(produto); setIsModalOpen(true); };
+    const handleNew = () => { setEditingProduct(null); setIsModalOpen(true); };
 
     const handleSave = (productData: NewProductData | Produto) => {
         const isEditing = 'id' in productData;
-        const url = isEditing
-            ? `${import.meta.env.VITE_API_URL}/api/produtos/${productData.id}`
-            : `${import.meta.env.VITE_API_URL}/api/produtos`;
+        const url = isEditing ? `${import.meta.env.VITE_API_URL}/api/produtos/${productData.id}` : `${import.meta.env.VITE_API_URL}/api/produtos`;
         const method = isEditing ? 'PUT' : 'POST';
 
-        fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(productData)
-        })
+        fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productData) })
             .then(res => res.json())
             .then(savedProduct => {
-                // Atualiza a lista localmente para não precisar recarregar
-                if (isEditing) {
-                    setProdutos(prev => prev.map(p => p.id === savedProduct.id ? savedProduct : p));
-                } else {
-                    setProdutos(prev => [...prev, savedProduct]);
-                }
+                if (isEditing) setProdutos(prev => prev.map(p => p.id === savedProduct.id ? savedProduct : p));
+                else setProdutos(prev => [...prev, savedProduct]);
                 setIsModalOpen(false);
-                setSnackbar({ open: true, message: 'Produto salvo com sucesso!', severity: 'success' });
+                setSnackbar({ open: true, message: 'Produto salvo!', severity: 'success' });
             })
-            .catch(() => setSnackbar({ open: true, message: 'Erro ao salvar produto.', severity: 'error' }));
+            .catch(() => setSnackbar({ open: true, message: 'Erro ao salvar.', severity: 'error' }));
     };
 
-    if (loading) {
-        return <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>;
-    }
+    if (loading) return <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>;
+    if (error) return <Typography color="error" sx={{ p: 3 }}>{error}</Typography>;
 
-    if (error) {
-        return <Typography color="error" sx={{ p: 3 }}>{error}</Typography>;
-    }
+    // Título dinâmico
+    const pageTitle = searchTerm ? `Resultados para "${searchTerm}"` : (selectedCategory || 'Categorias de Produtos');
 
     return (
         <Box sx={{ p: 3, flexGrow: 1 }}>
-            {/* Cabeçalho */}
-            {selectedCategory ? (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => setSelectedCategory(null)}>
-                        Voltar
-                    </Button>
-                    <Typography variant="h4">{selectedCategory}</Typography>
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={handleNew}>
-                        Novo Produto
-                    </Button>
-                </Box>
-            ) : (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h4">Categorias de Produtos</Typography>
-                    {/* Botão de Novo Produto também na tela de categorias */}
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={handleNew}>
-                        Novo Produto
-                    </Button>
-                </Box>
-            )}
-
-            {/* Visualização: Cards de Categoria OU Tabela de Produtos */}
-            {!selectedCategory ? (
-                <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', mt: 4 }}>
-                    {categories.length === 0 && (
-                        <Typography color="text.secondary">Nenhum produto cadastrado.</Typography>
+            {/* CABEÇALHO */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    {(selectedCategory || searchTerm) && (
+                        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => { setSelectedCategory(null); setSearchTerm(''); }}>
+                            Voltar
+                        </Button>
                     )}
+                    <Typography variant="h4" fontWeight="bold">{pageTitle}</Typography>
+                    {!selectedCategory && !searchTerm && (
+                        <Chip
+                            icon={<RestaurantIcon />}
+                            label={`${produtos.length} produtos`}
+                            color="primary"
+                            variant="outlined"
+                            sx={{ fontWeight: 'bold' }}
+                        />
+                    )}
+                </Box>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={handleNew}>Novo Produto</Button>
+            </Box>
+
+            {/* BARRA DE BUSCA */}
+            <Paper sx={{ p: 2, mb: 3 }} elevation={1}>
+                <TextField
+                    fullWidth
+                    placeholder="Buscar produto no cardápio..."
+                    variant="outlined"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon color="action" />
+                            </InputAdornment>
+                        ),
+                    }}
+                />
+            </Paper>
+
+            {/* CONTEÚDO: CATEGORIAS OU LISTA */}
+            {!selectedCategory && !searchTerm ? (
+                <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
                     {categories.map(category => (
-                        <Paper
-                            key={category.name}
-                            onClick={() => setSelectedCategory(category.name)}
-                            sx={{
-                                p: 2,
-                                cursor: 'pointer',
-                                boxShadow: 3,
-                                transition: 'transform 0.2s',
-                                '&:hover': { transform: 'translateY(-5px)', boxShadow: 6 },
-                                display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px'
-                            }}
-                        >
+                        <Paper key={category.name} onClick={() => setSelectedCategory(category.name)} sx={{ p: 2, cursor: 'pointer', boxShadow: 3, transition: 'transform 0.2s', '&:hover': { transform: 'translateY(-5px)', boxShadow: 6 }, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px' }}>
                             <Typography variant="h6">{category.name}</Typography>
-                            <Typography fontWeight="bold" align="right">
-                                {category.count} {category.count > 1 ? 'produtos' : 'produto'}
-                            </Typography>
+                            <Typography fontWeight="bold" align="right">{category.count} itens</Typography>
                         </Paper>
                     ))}
                 </Box>
@@ -215,6 +185,11 @@ export function ProductsPage() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
+                                {filteredProducts.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={3} align="center" sx={{ py: 3, color: 'text.secondary' }}>Nenhum produto encontrado.</TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </TableContainer>
@@ -222,20 +197,8 @@ export function ProductsPage() {
             )}
 
             <ProductModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} productToEdit={editingProduct} />
-
-            <ConfirmationDialog
-                open={deleteConfirm.open}
-                onClose={() => setDeleteConfirm({ open: false, productId: null })}
-                onConfirm={confirmDelete}
-                title="Confirmar Exclusão"
-                message="Tem certeza que deseja excluir este produto?"
-            />
-
-            {snackbar && (
-                <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-                    <Alert onClose={() => setSnackbar(null)} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>
-                </Snackbar>
-            )}
+            <ConfirmationDialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, productId: null })} onConfirm={confirmDelete} title="Confirmar Exclusão" message="Tem certeza que deseja excluir este produto?" />
+            {snackbar && <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar(null)}><Alert severity={snackbar.severity}>{snackbar.message}</Alert></Snackbar>}
         </Box>
     );
 }
