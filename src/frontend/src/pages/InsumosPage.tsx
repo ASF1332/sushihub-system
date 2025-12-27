@@ -1,5 +1,26 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { Box, Typography, Grid, Paper, Button, Table, TableContainer, TableHead, TableRow, TableCell, TableBody, IconButton, Snackbar, Alert, LinearProgress, Chip, TextField, MenuItem, Select } from '@mui/material';
+import {
+    Box,
+    Typography,
+    Grid,
+    Paper,
+    Button,
+    Table,
+    TableContainer,
+    TableHead,
+    TableRow,
+    TableCell,
+    TableBody,
+    IconButton,
+    Snackbar,
+    Alert,
+    LinearProgress,
+    Chip,
+    TextField,
+    MenuItem,
+    Select,
+    CircularProgress
+} from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -8,11 +29,20 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { InsumoModal } from '../components/InsumoModal';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 
-interface Insumo { id: number; nome: string; categoria: string; unidade?: string; estoque?: number; estoqueMinimo?: number; }
+// --- INTERFACE COMPLETA (COM PREÇO) ---
+interface Insumo {
+    id: number;
+    nome: string;
+    categoria: string;
+    unidade?: string;
+    estoque?: number;
+    estoqueMinimo?: number;
+    preco?: number; // Campo de custo
+}
+
 type InsumoData = Omit<Insumo, 'id'>;
 
-// --- COMPONENTE AUXILIAR: CÉLULA EDITÁVEL (TRAVADA) ---
-// --- COMPONENTE AUXILIAR: CÉLULA EDITÁVEL (CORRIGIDO COM CORES) ---
+// --- COMPONENTE DE CÉLULA EDITÁVEL ---
 const EditableCell = ({
                           value,
                           isEditing,
@@ -22,10 +52,15 @@ const EditableCell = ({
                           type = 'text',
                           align = 'left',
                           options = [],
-                          sx = {} // <-- RECEBE AS CORES AQUI
+                          sx = {}
                       }: any) => {
     const [tempValue, setTempValue] = useState(value);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Atualiza o valor interno se o valor externo mudar
+    useEffect(() => {
+        setTempValue(value);
+    }, [value]);
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -41,7 +76,7 @@ const EditableCell = ({
         }
     };
 
-    // MODO VISUALIZAÇÃO (COM COR)
+    // MODO VISUALIZAÇÃO
     if (!isEditing) {
         return (
             <TableCell
@@ -53,7 +88,7 @@ const EditableCell = ({
                     height: '56px',
                     boxSizing: 'border-box',
                     '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
-                    ...sx // <-- APLICA AS CORES AQUI
+                    ...sx
                 }}
             >
                 {value}
@@ -61,7 +96,7 @@ const EditableCell = ({
         );
     }
 
-    // MODO EDIÇÃO (INPUT)
+    // MODO EDIÇÃO (SELECT)
     if (options.length > 0) {
         return (
             <TableCell align={align} sx={{ p: 0, height: '56px' }}>
@@ -81,6 +116,7 @@ const EditableCell = ({
         );
     }
 
+    // MODO EDIÇÃO (TEXTO/NUMERO)
     return (
         <TableCell align={align} sx={{ p: 0, height: '56px' }}>
             <TextField
@@ -94,14 +130,9 @@ const EditableCell = ({
                 fullWidth
                 sx={{
                     height: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
                     '& .MuiInputBase-root': {
                         height: '100%',
                         fontSize: '0.875rem',
-                        // Aplica a cor também no input enquanto digita
-                        color: sx.color || 'inherit',
-                        fontWeight: sx.fontWeight || 'inherit',
                         paddingLeft: align === 'right' ? 0 : '16px',
                         paddingRight: align === 'right' ? '16px' : 0,
                     },
@@ -118,30 +149,49 @@ const EditableCell = ({
     );
 };
 
-
+// --- COMPONENTE PRINCIPAL ---
 export function InsumosPage() {
     const [insumos, setInsumos] = useState<Insumo[]>([]);
+    const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInsumo, setEditingInsumo] = useState<Insumo | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; insumoId: number | null }>({ open: false, insumoId: null });
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' } | null>(null);
-
-    // Estado para piscar a linha (animação)
     const [highlightedInsumoId, setHighlightedInsumoId] = useState<number | null>(null);
-
-    // --- NOVO: Estado para saber QUAL CÉLULA está sendo editada ---
-    // Ex: { id: 1, field: 'nome' }
     const [editingCell, setEditingCell] = useState<{ id: number, field: string } | null>(null);
 
+    // --- BUSCA DADOS ---
     const fetchInsumos = () => {
+        setLoading(true);
         fetch(`${import.meta.env.VITE_API_URL}/api/insumos`)
-            .then(res => res.json()).then(setInsumos).catch(() => setError('Falha ao carregar insumos.'));
+            .then(res => {
+                if (!res.ok) throw new Error('Erro na resposta da API');
+                return res.json();
+            })
+            .then(data => {
+                // PROTEÇÃO: Garante que é um array antes de salvar
+                if (Array.isArray(data)) {
+                    setInsumos(data);
+                    setError(null);
+                } else {
+                    console.error("API retornou dados inválidos:", data);
+                    setInsumos([]);
+                    setError("Erro: Servidor retornou dados inválidos.");
+                }
+            })
+            .catch((err) => {
+                console.error(err);
+                setError('Aguardando conexão com o servidor...');
+                setInsumos([]);
+            })
+            .finally(() => setLoading(false));
     };
+
     useEffect(() => { fetchInsumos(); }, []);
 
-    // Efeito de scroll e piscar (igual antes)
+    // Efeito de destaque na linha
     useEffect(() => {
         if (highlightedInsumoId && selectedCategory) {
             setTimeout(() => {
@@ -153,20 +203,30 @@ export function InsumosPage() {
         }
     }, [highlightedInsumoId, selectedCategory]);
 
-    const insumosPorCategoria = useMemo(() => insumos.reduce((acc, insumo) => {
-        (acc[insumo.categoria] = acc[insumo.categoria] || []).push(insumo);
-        return acc;
-    }, {} as Record<string, Insumo[]>), [insumos]);
+    // --- CÁLCULOS E FILTROS (Com proteção contra nulo) ---
+    const insumosPorCategoria = useMemo(() => {
+        if (!Array.isArray(insumos)) return {};
+        return insumos.reduce((acc, insumo) => {
+            (acc[insumo.categoria] = acc[insumo.categoria] || []).push(insumo);
+            return acc;
+        }, {} as Record<string, Insumo[]>);
+    }, [insumos]);
 
-    const filteredInsumos = useMemo(() => selectedCategory ? insumos.filter(i => i.categoria === selectedCategory) : [], [insumos, selectedCategory]);
+    const filteredInsumos = useMemo(() => {
+        if (!selectedCategory || !Array.isArray(insumos)) return [];
+        return insumos.filter(i => i.categoria === selectedCategory);
+    }, [insumos, selectedCategory]);
 
-    const itensEmAlerta = useMemo(() => insumos.filter(i => (i.estoque || 0) < (i.estoqueMinimo || 5)), [insumos]);
-    const totalItens = insumos.length;
-    const totalAlerta = itensEmAlerta.length;
-    const percentualSaude = totalItens > 0 ? ((totalItens - totalAlerta) / totalItens) * 100 : 100;
+    const itensEmAlerta = useMemo(() => {
+        if (!Array.isArray(insumos)) return [];
+        return insumos.filter(i => (i.estoque || 0) < (i.estoqueMinimo || 5));
+    }, [insumos]);
 
+    const percentualSaude = insumos.length > 0 ? ((insumos.length - itensEmAlerta.length) / insumos.length) * 100 : 100;
+
+    // --- AÇÕES ---
     const handleNew = () => { setEditingInsumo(null); setIsModalOpen(true); };
-    const handleEditComplete = (insumo: Insumo) => { setEditingInsumo(insumo); setIsModalOpen(true); }; // Edição completa via modal
+    const handleEditComplete = (insumo: Insumo) => { setEditingInsumo(insumo); setIsModalOpen(true); };
     const handleDelete = (id: number) => setDeleteConfirm({ open: true, insumoId: id });
 
     const handleNavigateToItem = (categoria: string, id: number) => {
@@ -174,44 +234,36 @@ export function InsumosPage() {
         setHighlightedInsumoId(id);
     };
 
-    // --- NOVA FUNÇÃO: SALVAR EDIÇÃO EM LINHA (CELULA) ---
+    // Salvar edição da célula (Inline Edit)
     const handleCellSave = (id: number, field: string, value: any) => {
         const insumoOriginal = insumos.find(i => i.id === id);
-        if (!insumoOriginal) return;
-
-        // Se o valor não mudou, não faz nada
-        if (insumoOriginal[field as keyof Insumo] == value) {
+        if (!insumoOriginal || insumoOriginal[field as keyof Insumo] == value) {
             setEditingCell(null);
             return;
         }
 
         const insumoAtualizado = { ...insumoOriginal, [field]: value };
-
-        // Converte para número se for estoque
-        if (field === 'estoque' || field === 'estoqueMinimo') {
-            insumoAtualizado[field] = Number(value);
+        // Converte para número se necessário
+        if (['estoque', 'estoqueMinimo', 'preco'].includes(field)) {
+            insumoAtualizado[field as keyof Insumo] = Number(value);
         }
 
-        // Atualiza no Backend
         fetch(`${import.meta.env.VITE_API_URL}/api/insumos/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(insumoAtualizado)
-        })
-            .then(res => res.json())
-            .then(savedInsumo => {
-                setInsumos(prev => prev.map(i => i.id === savedInsumo.id ? savedInsumo : i));
-                setEditingCell(null); // Sai do modo de edição
-                setSnackbar({ open: true, message: 'Atualizado!', severity: 'success' });
-            })
-            .catch(() => setSnackbar({ open: true, message: 'Erro ao atualizar.', severity: 'error' }));
+        }).then(res => res.json()).then(saved => {
+            setInsumos(prev => prev.map(i => i.id === saved.id ? saved : i));
+            setEditingCell(null);
+            setSnackbar({ open: true, message: 'Atualizado!', severity: 'success' });
+        });
     };
 
+    // Confirmar Exclusão
     const confirmDelete = () => {
         if (deleteConfirm.insumoId) {
             fetch(`${import.meta.env.VITE_API_URL}/api/insumos/${deleteConfirm.insumoId}`, { method: 'DELETE' })
-                .then(res => {
-                    if (!res.ok) throw new Error();
+                .then(() => {
                     setInsumos(prev => prev.filter(i => i.id !== deleteConfirm.insumoId));
                     setSnackbar({ open: true, message: 'Excluído!', severity: 'success' });
                 })
@@ -220,26 +272,22 @@ export function InsumosPage() {
         }
     };
 
-    const handleSaveModal = (insumoData: InsumoData | Insumo) => {
-        const isEditing = 'id' in insumoData;
-        const url = isEditing ? `${import.meta.env.VITE_API_URL}/api/insumos/${insumoData.id}` : `${import.meta.env.VITE_API_URL}/api/insumos`;
-        const method = isEditing ? 'PUT' : 'POST';
-
-        fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(insumoData) })
-            .then(res => res.json())
-            .then(savedInsumo => {
-                if (isEditing) {
-                    setInsumos(prev => prev.map(i => i.id === savedInsumo.id ? savedInsumo : i));
-                } else {
-                    setInsumos(prev => [...prev, savedInsumo]);
-                }
-                setIsModalOpen(false);
-                setSnackbar({ open: true, message: 'Salvo com sucesso!', severity: 'success' });
-            })
-            .catch(() => setSnackbar({ open: true, message: 'Erro ao salvar.', severity: 'error' }));
+    // Salvar via Modal
+    const handleSaveModal = (data: InsumoData | Insumo) => {
+        const isEditing = 'id' in data;
+        fetch(`${import.meta.env.VITE_API_URL}/api/insumos${isEditing ? `/${data.id}` : ''}`, {
+            method: isEditing ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(res => res.json()).then(saved => {
+            setInsumos(prev => isEditing ? prev.map(i => i.id === saved.id ? saved : i) : [...prev, saved]);
+            setIsModalOpen(false);
+            setSnackbar({ open: true, message: 'Salvo com sucesso!', severity: 'success' });
+        });
     };
 
     return (
+        // CORREÇÃO DE SCROLL (maxWidth e overflowX)
         <Box sx={{ p: 3, maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2 }}>
                 {selectedCategory && (
@@ -251,15 +299,21 @@ export function InsumosPage() {
                 <Button variant="contained" color="primary" onClick={handleNew}>Novo Insumo</Button>
             </Box>
 
-            {error && <Typography color="error">{error}</Typography>}
+            {/* LOADING E ERRO */}
+            {loading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}
 
-            {!selectedCategory ? (
+            {error && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    {error} <Button color="inherit" size="small" onClick={fetchInsumos}>Tentar Novamente</Button>
+                </Alert>
+            )}
+
+            {/* VISÃO GERAL (CARDS DE CATEGORIA + PAINEL DE ALERTAS) */}
+            {!loading && !error && !selectedCategory ? (
                 <>
                     <Grid container spacing={3} sx={{ mb: 6 }}>
                         {Object.entries(insumosPorCategoria).map(([categoria, itens]) => {
-                            // 1. CÁLCULO: Quantos itens DESSA categoria estão abaixo do mínimo?
                             const qtdCriticos = itens.filter(i => (i.estoque || 0) < (i.estoqueMinimo || 5)).length;
-
                             return (
                                 <Grid item xs={12} sm={6} md={4} lg={3} key={categoria}>
                                     <Paper
@@ -268,36 +322,18 @@ export function InsumosPage() {
                                         sx={{
                                             p: 2,
                                             cursor: 'pointer',
-                                            transition: 'transform 0.2s, box-shadow 0.2s',
+                                            transition: 'transform 0.2s',
                                             '&:hover': { transform: 'translateY(-5px)', boxShadow: 6 },
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            justifyContent: 'space-between',
-                                            minHeight: '120px'
+                                            display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px'
                                         }}
                                     >
-                                        {/* Título da Categoria */}
                                         <Typography variant="h6" align="left">{categoria.toUpperCase()}</Typography>
-
-                                        {/* Rodapé do Card (Esquerda: Críticos / Direita: Total) */}
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mt: 1 }}>
-
-                                            {/* ESQUERDA: Itens Críticos em Vermelho */}
-                                            <Typography
-                                                variant="body2"
-                                                sx={{
-                                                    color: 'error.main', // Vermelho
-                                                    fontWeight: 'bold',
-                                                    // Se for 0, esconde para deixar o visual limpo (opcional)
-                                                    visibility: qtdCriticos > 0 ? 'visible' : 'hidden'
-                                                }}
-                                            >
-                                                {qtdCriticos} {qtdCriticos === 1 ? 'crítico' : 'críticos'}
+                                            <Typography variant="body2" sx={{ color: 'error.main', fontWeight: 'bold', visibility: qtdCriticos > 0 ? 'visible' : 'hidden' }}>
+                                                {qtdCriticos} críticos
                                             </Typography>
-
-                                            {/* DIREITA: Total de Itens */}
                                             <Typography color="text.primary" fontWeight="bold" align="right">
-                                                {itens.length} {itens.length > 1 ? 'itens' : 'item'}
+                                                {itens.length} itens
                                             </Typography>
                                         </Box>
                                     </Paper>
@@ -321,63 +357,41 @@ export function InsumosPage() {
                                     <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 'bold' }}>{Math.round(percentualSaude)}% OK</Typography>
                                     <Typography variant="body2" sx={{ color: 'error.main', fontWeight: 'bold' }}>{Math.round(100 - percentualSaude)}% Crítico</Typography>
                                 </Box>
-                                <Typography variant="body2" color="text.secondary">
-                                    {totalAlerta === 0 ? "Estoque perfeito! Nada a repor." : `${totalAlerta} itens precisam de atenção imediata.`}
-                                </Typography>
                             </Paper>
                         </Grid>
 
                         <Grid item xs={12} md={8}>
                             <Paper sx={{ p: 2 }}>
                                 <Typography variant="h6" gutterBottom color="error.main">Itens com Estoque Crítico</Typography>
-                                {itensEmAlerta.length > 0 ? (
-                                    <TableContainer sx={{ maxHeight: 300 }}>
-                                        <Table size="small" stickyHeader>
-                                            <TableHead>
-                                                <TableRow>
-                                                    <TableCell sx={{ fontWeight: 'bold' }}>Insumo</TableCell>
-                                                    <TableCell sx={{ fontWeight: 'bold' }}>Categoria</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Atual</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Mínimo</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>A Comprar</TableCell>
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {itensEmAlerta.map((item) => (
-                                                    <TableRow
-                                                        key={item.id}
-                                                        hover
-                                                        // Removemos o onClick na linha inteira para não conflitar com a edição
-                                                        // Adicionamos o clique apenas nas células não editáveis
-                                                        sx={{ cursor: 'pointer' }}
-                                                    >
-                                                        {/* NOME (Clique simples navega, não edita aqui para evitar confusão) */}
-                                                        <TableCell
-                                                            onClick={() => handleNavigateToItem(item.categoria, item.id)}
-                                                        >
-                                                            {item.nome}
-                                                        </TableCell>
-
-                                                        <TableCell onClick={() => handleNavigateToItem(item.categoria, item.id)}>
-                                                            <Chip label={item.categoria} size="small" />
-                                                        </TableCell>
-
-                                                        {/* ESTOQUE ATUAL (EDITÁVEL) */}
+                                <TableContainer sx={{ maxHeight: 300 }}>
+                                    <Table size="small" stickyHeader>
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell sx={{ fontWeight: 'bold' }}>Insumo</TableCell>
+                                                <TableCell sx={{ fontWeight: 'bold' }}>Categoria</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>Atual</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>Mínimo</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>A Comprar</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {itensEmAlerta.length === 0 ? (
+                                                <TableRow><TableCell colSpan={5} align="center">Tudo certo! Nenhum item crítico.</TableCell></TableRow>
+                                            ) : (
+                                                itensEmAlerta.map((item) => (
+                                                    <TableRow key={item.id} hover sx={{ cursor: 'pointer' }}>
+                                                        <TableCell onClick={() => handleNavigateToItem(item.categoria, item.id)}>{item.nome}</TableCell>
+                                                        <TableCell onClick={() => handleNavigateToItem(item.categoria, item.id)}><Chip label={item.categoria} size="small" /></TableCell>
                                                         <EditableCell
                                                             value={item.estoque}
                                                             type="number"
                                                             align="right"
-                                                            sx={{
-                                                                color: 'error.main',
-                                                                fontWeight: 'bold'
-                                                            }}
+                                                            sx={{ color: 'error.main', fontWeight: 'bold' }}
                                                             isEditing={editingCell?.id === item.id && editingCell?.field === 'estoque'}
                                                             onDoubleClick={() => setEditingCell({ id: item.id, field: 'estoque' })}
                                                             onSave={(newVal: any) => handleCellSave(item.id, 'estoque', newVal)}
                                                             onCancel={() => setEditingCell(null)}
                                                         />
-
-                                                        {/* MÍNIMO (EDITÁVEL) */}
                                                         <EditableCell
                                                             value={item.estoqueMinimo || 5}
                                                             type="number"
@@ -386,53 +400,41 @@ export function InsumosPage() {
                                                             onDoubleClick={() => setEditingCell({ id: item.id, field: 'estoqueMinimo' })}
                                                             onSave={(newVal: any) => handleCellSave(item.id, 'estoqueMinimo', newVal)}
                                                             onCancel={() => setEditingCell(null)}
-                                                            // ADICIONE ESTE BLOCO:
-                                                            sx={{
-                                                                color: '#1976d2', // Azul
-                                                                fontWeight: 'bold' // Negrito
-                                                            }}
+                                                            sx={{ color: '#1976d2', fontWeight: 'bold' }}
                                                         />
-
-                                                        {/* A COMPRAR (Cálculo Automático, não editável) */}
-                                                        <TableCell
-                                                            align="right"
-                                                            sx={{ color: 'text.primary' }} // Apenas a cor, sem o bold
-                                                            onClick={() => handleNavigateToItem(item.categoria, item.id)}
-                                                        >
+                                                        <TableCell align="right" onClick={() => handleNavigateToItem(item.categoria, item.id)}>
                                                             {((item.estoqueMinimo || 5) - (item.estoque || 0))} {item.unidade}
                                                         </TableCell>
                                                     </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                ) : (
-                                    <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                        <CheckCircleIcon color="success" sx={{ fontSize: 40, mb: 1 }} />
-                                        <Typography>Tudo certo! Nenhum item abaixo do mínimo.</Typography>
-                                    </Box>
-                                )}
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
                             </Paper>
                         </Grid>
                     </Grid>
                 </>
-            ) : (
+            ) : null}
+
+            {/* TABELA DETALHADA DA CATEGORIA SELECIONADA */}
+            {!loading && !error && selectedCategory ? (
                 <Paper sx={{ mt: 2 }}>
                     <TableContainer>
                         <Table>
                             <TableHead>
                                 <TableRow>
                                     <TableCell sx={{ fontWeight: 'bold' }}>Nome do Insumo</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Custo Unit.</TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>Estoque Atual</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 'bold',}}>Estoque Mínimo</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Estoque Mínimo</TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>Unidade</TableCell>
                                     <TableCell align="center" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {filteredInsumos.map((insumo) => {
-                                    const minimo = insumo.estoqueMinimo || 5;
-                                    const estoqueBaixo = (insumo.estoque || 0) < minimo;
+                                    const estoqueBaixo = (insumo.estoque || 0) < (insumo.estoqueMinimo || 5);
                                     const isHighlighted = insumo.id === highlightedInsumoId;
 
                                     return (
@@ -442,13 +444,7 @@ export function InsumosPage() {
                                             hover
                                             sx={{
                                                 backgroundColor: isHighlighted ? 'rgba(25, 118, 210, 0.2)' : 'inherit',
-                                                transition: 'background-color 0.5s ease',
-                                                animation: isHighlighted ? 'pulse 1s infinite' : 'none',
-                                                '@keyframes pulse': {
-                                                    '0%': { backgroundColor: 'rgba(25, 118, 210, 0.1)' },
-                                                    '50%': { backgroundColor: 'rgba(25, 118, 210, 0.3)' },
-                                                    '100%': { backgroundColor: 'rgba(25, 118, 210, 0.1)' },
-                                                }
+                                                transition: 'background-color 0.5s ease'
                                             }}
                                         >
                                             <EditableCell
@@ -459,7 +455,18 @@ export function InsumosPage() {
                                                 onCancel={() => setEditingCell(null)}
                                             />
 
-                                            {/* ESTOQUE ATUAL (AGORA VAI FUNCIONAR) */}
+                                            {/* COLUNA DE PREÇO (Que eu tinha esquecido antes) */}
+                                            <EditableCell
+                                                value={insumo.preco ? `R$ ${insumo.preco.toFixed(2)}` : 'R$ 0.00'}
+                                                type="number"
+                                                align="right"
+                                                sx={{ color: '#2e7d32', fontWeight: 'bold' }}
+                                                isEditing={editingCell?.id === insumo.id && editingCell?.field === 'preco'}
+                                                onDoubleClick={() => setEditingCell({ id: insumo.id, field: 'preco' })}
+                                                onSave={(newVal: any) => handleCellSave(insumo.id, 'preco', newVal)}
+                                                onCancel={() => setEditingCell(null)}
+                                            />
+
                                             <EditableCell
                                                 value={insumo.estoque}
                                                 type="number"
@@ -468,14 +475,12 @@ export function InsumosPage() {
                                                 onDoubleClick={() => setEditingCell({ id: insumo.id, field: 'estoque' })}
                                                 onSave={(newVal: any) => handleCellSave(insumo.id, 'estoque', newVal)}
                                                 onCancel={() => setEditingCell(null)}
-                                                // AQUI A COR VAI FUNCIONAR PORQUE A VARIÁVEL EXISTE AGORA
                                                 sx={{
                                                     color: estoqueBaixo ? 'error.main' : '#4caf50',
                                                     fontWeight: 'bold'
                                                 }}
                                             />
 
-                                            {/* ESTOQUE MÍNIMO (EDITÁVEL) */}
                                             <EditableCell
                                                 value={insumo.estoqueMinimo || 5}
                                                 type="number"
@@ -484,14 +489,9 @@ export function InsumosPage() {
                                                 onDoubleClick={() => setEditingCell({ id: insumo.id, field: 'estoqueMinimo' })}
                                                 onSave={(newVal: any) => handleCellSave(insumo.id, 'estoqueMinimo', newVal)}
                                                 onCancel={() => setEditingCell(null)}
-                                                // AQUI A MUDANÇA DA COR:
-                                                sx={{
-                                                    color: '#1976d2', // Azul Profissional
-                                                    fontWeight: 'bold'
-                                                }}
+                                                sx={{ color: '#1976d2', fontWeight: 'bold' }}
                                             />
 
-                                            {/* UNIDADE (EDITÁVEL COM SELECT) */}
                                             <EditableCell
                                                 value={insumo.unidade}
                                                 align="right"
@@ -513,7 +513,7 @@ export function InsumosPage() {
                         </Table>
                     </TableContainer>
                 </Paper>
-            )}
+            ) : null}
 
             <InsumoModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveModal} insumoToEdit={editingInsumo} />
             <ConfirmationDialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, insumoId: null })} onConfirm={confirmDelete} title="Confirmar Exclusão" message="Tem certeza que deseja excluir este insumo?" />
