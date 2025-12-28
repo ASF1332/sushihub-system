@@ -105,111 +105,102 @@ async function main() {
         });
     }
 
-    // --- 3. PRODUTOS (Cardápio Completo - 80 Itens) ---
+// --- 3. PRODUTOS (Cardápio Oficial - 73 Itens - Português Corrigido) ---
     const produtos = [
-        // --- LINHA TAKASHI (6) ---
-        { nome: 'TAKASHI 68', preco: 99.90, categoria: 'Combos' },
-        { nome: 'TAKASHI 104', preco: 154.90, categoria: 'Combos' },
-        { nome: 'TAKASHI 110 (FAMILIA)', preco: 169.90, categoria: 'Combos' },
-        { nome: 'TAKASHI 38', preco: 119.90, categoria: 'Combos' },
-        { nome: 'TAKASHI 30 (+1 TEMAKI)', preco: 99.90, categoria: 'Combos' },
-        { nome: 'TAKASHI 40', preco: 119.90, categoria: 'Combos' },
+        // --- CATEGORIA: COMBOS MAIS PEDIDOS ---
+        { nome: 'TAKASHI 68', preco: 99.90, categoria: 'COMBOS MAIS PEDIDOS' },
+        { nome: 'TAKASHI 104', preco: 154.90, categoria: 'COMBOS MAIS PEDIDOS' },
+        { nome: 'TAKASHI 110 (FAMÍLIA)', preco: 169.90, categoria: 'COMBOS MAIS PEDIDOS' },
+        { nome: 'TAKASHI 38', preco: 119.90, categoria: 'COMBOS MAIS PEDIDOS' },
+        { nome: 'TAKASHI 30 (+1 TEMAKI)', preco: 99.90, categoria: 'COMBOS MAIS PEDIDOS' },
+        { nome: 'TAKASHI 40', preco: 119.90, categoria: 'COMBOS MAIS PEDIDOS' },
+        { nome: 'TAKASHI 42', preco: 124.90, categoria: 'COMBOS MAIS PEDIDOS' },
+        { nome: 'TAKASHI IDEAL (70 PEÇAS E LÂMINAS)', preco: 139.90, categoria: 'COMBOS MAIS PEDIDOS' },
+        { nome: 'TAKASHI 70', preco: 144.90, categoria: 'COMBOS MAIS PEDIDOS' },
+        { nome: 'TAKASHI 72', preco: 149.90, categoria: 'COMBOS MAIS PEDIDOS' },
+        { nome: 'COMBO HOT ESPECIAL 2.0 (30 PEÇAS)', preco: 69.90, categoria: 'COMBOS MAIS PEDIDOS' },
 
-        // --- DESCARTÁVEIS (5) ---
-        { nome: 'Sachê tarê', preco: 1.25, categoria: 'Descartáveis' },
-        { nome: 'Molho shoyuo', preco: 1.25, categoria: 'Descartáveis' },
-        { nome: 'Whasabi (Extra)', preco: 1.00, categoria: 'Descartáveis' },
-        { nome: 'Gengibre (Extra)', preco: 1.00, categoria: 'Descartáveis' },
-        { nome: 'Hashi (Extra)', preco: 0.50, categoria: 'Descartáveis' },
+        // --- CATEGORIA: COMBOS PREMIUM ---
+        { nome: 'TAKASHI EBI TEN 52 PEÇAS (CAMARÃO)', preco: 209.90, categoria: 'COMBOS PREMIUM' },
+        { nome: 'COMBO CASAL 56 PEÇAS', preco: 169.90, categoria: 'COMBOS PREMIUM' },
+        { nome: 'COMBO DO CHEFE 64 PEÇAS', preco: 199.90, categoria: 'COMBOS PREMIUM' },
+        { nome: 'TAKASHI 80 SALMÃO', preco: 189.90, categoria: 'COMBOS PREMIUM' },
+        { nome: 'COMBO GUNKAN 20 PEÇAS', preco: 129.90, categoria: 'COMBOS PREMIUM' },
 
-        // --- PRATOS QUENTES (10) - Estavam no HTML ---
-        { nome: 'Yakisoba mista grande', preco: 29.90, categoria: 'Pratos Quentes' },
-        { nome: 'Yakisoba mista pequeno', preco: 25.00, categoria: 'Pratos Quentes' },
-        { nome: 'Yakisoba de carne grande', preco: 28.00, categoria: 'Pratos Quentes' },
-        { nome: 'Yakisoba de carne pequena', preco: 26.00, categoria: 'Pratos Quentes' },
-        { nome: 'Yakisoba pequeno de frango', preco: 24.00, categoria: 'Pratos Quentes' },
-        { nome: 'Yakisoba grande de frango', preco: 27.90, categoria: 'Pratos Quentes' },
-        { nome: 'Berinjela recheada', preco: 10.00, categoria: 'Pratos Quentes' },
-        { nome: 'Filé de salmão grelhado', preco: 40.00, categoria: 'Pratos Quentes' },
-        { nome: 'Porção de shimeji', preco: 28.00, categoria: 'Pratos Quentes' },
-        { nome: 'Sopa de missô', preco: 14.00, categoria: 'Pratos Quentes' },
+        // --- CATEGORIA: COMBOS PARA 1 PESSOA ---
+        { nome: 'TAKASHI ALASKA (40 PEÇAS)', preco: 89.90, categoria: 'COMBOS PARA 1 PESSOA' },
+        { nome: 'TAKASHI SÓ SALMÃO (38 PEÇAS)', preco: 139.90, categoria: 'COMBOS PARA 1 PESSOA' },
 
-        // --- COMBOS (15) ---
-        { nome: 'Combo 1 (1 Temaki + 12 Hot)', preco: 49.00, categoria: 'Combos' },
-        { nome: 'Combo 2 (2 Temaki + 12 Hot)', preco: 68.00, categoria: 'Combos' },
-        { nome: 'Combo 3 (28 unidades)', preco: 74.90, categoria: 'Combos' },
-        { nome: 'Combo 4 (32 unidades)', preco: 70.00, categoria: 'Combos' },
-        { nome: 'Combo 5 (20 unidades)', preco: 50.00, categoria: 'Combos' },
-        { nome: 'Combo 6', preco: 75.00, categoria: 'Combos' },
-        { nome: 'Combo 7 Executivo', preco: 66.00, categoria: 'Combos' },
-        { nome: 'Combo 9 (18 un + 2 Temaki)', preco: 65.00, categoria: 'Combos' },
-        { nome: 'Combo 10 (32 un + 2 Temaki)', preco: 95.00, categoria: 'Combos' },
-        { nome: 'Combo de 80 unidades', preco: 130.00, categoria: 'Combos' },
-        { nome: 'Combo 16 unidades', preco: 35.00, categoria: 'Combos' },
-        { nome: 'Combo economico 20 unidades', preco: 39.90, categoria: 'Combos' },
-        { nome: 'Combo 28 unidades', preco: 60.00, categoria: 'Combos' },
-        { nome: 'Combo 52 unidades', preco: 89.90, categoria: 'Combos' },
-        { nome: 'Mini barca + 2 temaki', preco: 67.00, categoria: 'Combos' },
+        // --- CATEGORIA: PORÇÕES DE SUSHI ---
+        { nome: 'DRAGON EBI TEN 5 PEÇAS CAMARÃO', preco: 39.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'GUNKAN EBI TEN 5 PEÇAS CAMARÃO', preco: 29.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'URAMAKI FILA 10 PEÇAS', preco: 34.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'URAMAKI SALMÃO 10 PEÇAS', preco: 34.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'URAMAKI SALAD (GRELHADO) 10 PEÇAS', preco: 34.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'URAMAKI SKIN 10 PEÇAS', preco: 29.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'URAMAKI ALASKA 10 PEÇAS', preco: 32.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'HOSSOMAKI FILA 10 PEÇAS', preco: 29.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'HOSSOMAKI SALMÃO 10 PEÇAS', preco: 29.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'HOSSOMAKI SKIN 10 PEÇAS', preco: 24.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'HOSSOMAKI KANI 10 PEÇAS', preco: 24.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'HOSSOMAKI PEPINO 10 PEÇAS', preco: 24.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'GUNKAN ALASKA 5 PEÇAS', preco: 17.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'GUNKAN SALMÃO 5 PEÇAS', preco: 29.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'SASHIMI 10 PEÇAS', preco: 54.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'NIGUIRI SALMÃO 5 PEÇAS', preco: 19.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'NIGUIRI SKIN 5 PEÇAS', preco: 17.90, categoria: 'PORÇÕES DE SUSHI' },
+        { nome: 'NIGUIRI KANI 5 PEÇAS', preco: 17.90, categoria: 'PORÇÕES DE SUSHI' },
 
-        // --- TEMAKIS (12) ---
-        { nome: 'Temaki skin', preco: 27.00, categoria: 'Temakis' },
-        { nome: 'Temaki de salmão crú completo', preco: 31.00, categoria: 'Temakis' },
-        { nome: 'Temaki de camarão cozido', preco: 37.00, categoria: 'Temakis' },
-        { nome: 'Temaki de camarão empanado', preco: 38.00, categoria: 'Temakis' },
-        { nome: 'Temaki de salmão empanado', preco: 30.00, categoria: 'Temakis' },
-        { nome: 'Temaki de salmão grelhado', preco: 31.00, categoria: 'Temakis' },
-        { nome: 'Temaki Califórnia', preco: 28.00, categoria: 'Temakis' },
-        { nome: 'Temaki hot holl', preco: 29.90, categoria: 'Temakis' },
-        { nome: 'Temaki mexicano', preco: 33.00, categoria: 'Temakis' },
-        { nome: 'Temaki no copo', preco: 34.90, categoria: 'Temakis' },
-        { nome: 'Temaki de salmão com shimeji', preco: 33.00, categoria: 'Temakis' },
-        { nome: 'Temaki de shimeji', preco: 28.00, categoria: 'Temakis' },
+        // --- CATEGORIA: TEMAKIS ---
+        { nome: 'TEMAKI CAMARÃO/SALMÃO', preco: 39.90, categoria: 'TEMAKIS' },
+        { nome: 'TEMAKI FILA', preco: 34.90, categoria: 'TEMAKIS' },
+        { nome: 'TEMAKI SALMÃO', preco: 34.90, categoria: 'TEMAKIS' },
+        { nome: 'TEMAKI HOT', preco: 39.90, categoria: 'TEMAKIS' },
+        { nome: 'TEMAKI SALMÃO SKIN', preco: 31.90, categoria: 'TEMAKIS' },
+        { nome: 'TEMAKI SKIN', preco: 28.90, categoria: 'TEMAKIS' },
+        { nome: 'TEMAKI KANI', preco: 24.90, categoria: 'TEMAKIS' },
+        { nome: 'TEMAKI ALASKA', preco: 29.90, categoria: 'TEMAKIS' },
 
-        // --- POKES (4) ---
-        { nome: 'Poke misto', preco: 35.00, categoria: 'Pokes' },
-        { nome: 'Poke abacate', preco: 43.00, categoria: 'Pokes' },
-        { nome: 'Poke de camarão', preco: 45.00, categoria: 'Pokes' },
-        { nome: 'Poke cream cheese', preco: 43.00, categoria: 'Pokes' },
+        // --- CATEGORIA: BOLINHOS DE SALMÃO TAKASHI ---
+        { nome: '4 BOLINHOS DE SALMÃO E CEBOLINHA', preco: 24.90, categoria: 'BOLINHOS DE SALMÃO TAKASHI' },
 
-        // --- PORÇÕES (4) ---
-        { nome: 'Porção de ceviche de salmão', preco: 45.00, categoria: 'Porções' },
-        { nome: 'Porção de carpaccio de salmão', preco: 39.90, categoria: 'Porções' },
-        { nome: 'Sashimi de salmão (12 un)', preco: 39.90, categoria: 'Porções' },
-        { nome: 'Sashimi de salmão (6 un)', preco: 36.00, categoria: 'Porções' },
+        // --- CATEGORIA: POKES TAKASHI ---
+        { nome: 'POKE SAMURAI', preco: 59.90, categoria: 'POKES TAKASHI' },
+        { nome: 'POKE FUJI', preco: 54.90, categoria: 'POKES TAKASHI' },
+        { nome: 'POKE HAVAÍ CROCANTE', preco: 64.90, categoria: 'POKES TAKASHI' },
+        { nome: 'POKE VEGETARIANO', preco: 44.90, categoria: 'POKES TAKASHI' },
 
-        // --- HOT HOLL (8) - Recuperados ---
-        { nome: 'Hot Eby Roll (4 un)', preco: 29.00, categoria: 'Hot Holl' },
-        { nome: 'Hot Mix (10 un)', preco: 29.00, categoria: 'Hot Holl' },
-        { nome: 'Hot Philadelfia (10 un)', preco: 29.00, categoria: 'Hot Holl' },
-        { nome: 'Hot Philadelphia Especial (10 un)', preco: 34.00, categoria: 'Hot Holl' },
-        { nome: 'Hot Shake (6 un)', preco: 34.00, categoria: 'Hot Holl' },
-        { nome: 'Hot Shiromi (6 un)', preco: 34.00, categoria: 'Hot Holl' },
-        { nome: 'Hot Uramaki (10 un)', preco: 29.00, categoria: 'Hot Holl' },
-        { nome: 'Shake Aguê (4 un)', preco: 29.00, categoria: 'Hot Holl' },
+        // --- CATEGORIA: BIG HOTS TAKASHI ---
+        { nome: 'BIG HOT SALAD', preco: 49.90, categoria: 'BIG HOTS TAKASHI' },
+        { nome: 'BIG HOT SALMÃO/ALHO PORÓ/CEBOLA RX', preco: 49.90, categoria: 'BIG HOTS TAKASHI' },
 
-        // --- HARUMAKI (2) - Recuperados ---
-        { nome: 'Harumaki Peixe (2 un)', preco: 15.00, categoria: 'Entradas' },
-        { nome: 'Harumaki Queijo (2 un)', preco: 15.00, categoria: 'Entradas' },
+        // --- CATEGORIA: PORÇÕES HOT ROLL ---
+        { nome: 'HOT ROLL FILADÉLFIA 10 PEÇAS', preco: 19.90, categoria: 'PORÇÕES HOT ROLL' },
+        { nome: 'HOT ROLL FILADÉLFIA 20 PEÇAS', preco: 38.90, categoria: 'PORÇÕES HOT ROLL' },
+        { nome: 'HOT ROLL FILADÉLFIA 30 PEÇAS', preco: 49.90, categoria: 'PORÇÕES HOT ROLL' },
+        { nome: 'HOT EBI CAMARÃO 10 PEÇAS', preco: 34.90, categoria: 'PORÇÕES HOT ROLL' },
+        { nome: 'HOT ROLL DOCE MORANGO/CHOCOLATE', preco: 24.90, categoria: 'PORÇÕES HOT ROLL' },
+        { nome: 'HOT ROLL DOCE BANANA/CHOCOLATE', preco: 24.90, categoria: 'PORÇÕES HOT ROLL' },
 
-        // --- GUIOZA (1) - Recuperado ---
-        { nome: 'Guioza de Lombo (4 un)', preco: 25.00, categoria: 'Entradas' },
+        // --- CATEGORIA: BEBIDAS ---
+        { nome: 'COCA COLA 2L', preco: 18.00, categoria: 'BEBIDAS' },
+        { nome: 'COCA COLA ZERO 2L', preco: 18.00, categoria: 'BEBIDAS' },
+        { nome: 'GUARANÁ 2L', preco: 13.00, categoria: 'BEBIDAS' },
+        { nome: 'GUARANÁ ZERO 2L', preco: 13.00, categoria: 'BEBIDAS' },
+        { nome: 'COCA COLA LATA', preco: 6.00, categoria: 'BEBIDAS' },
+        { nome: 'GUARANÁ LATA', preco: 5.00, categoria: 'BEBIDAS' },
+        { nome: 'GUARANÁ ZERO LATA', preco: 5.00, categoria: 'BEBIDAS' },
+        { nome: 'ÁGUA SEM GÁS 500ML', preco: 5.00, categoria: 'BEBIDAS' },
+        { nome: 'ÁGUA COM GÁS 500ML', preco: 5.00, categoria: 'BEBIDAS' },
 
-        // --- ENTRADAS EXTRAS (3) - Recuperados ---
-        { nome: 'Sunomono', preco: 18.00, categoria: 'Entradas' },
-        { nome: 'Isca de Peixe', preco: 35.00, categoria: 'Entradas' },
-        { nome: 'Garrafa Saquê Nacional', preco: 45.00, categoria: 'Bebidas' },
-
-        // --- BEBIDAS (10) ---
-        { nome: 'Água com gás', preco: 5.00, categoria: 'Bebidas' },
-        { nome: 'Águas sem gás', preco: 5.00, categoria: 'Bebidas' },
-        { nome: 'Coca lata', preco: 7.00, categoria: 'Bebidas' },
-        { nome: 'Coca lata zero', preco: 7.00, categoria: 'Bebidas' },
-        { nome: 'Guaraná lata', preco: 7.00, categoria: 'Bebidas' },
-        { nome: 'Guaraná lata zero', preco: 7.00, categoria: 'Bebidas' },
-        { nome: 'Coca 2 litros', preco: 18.00, categoria: 'Bebidas' },
-        { nome: 'Coca zero 2 litros', preco: 18.00, categoria: 'Bebidas' },
-        { nome: 'Guaraná 2 litros', preco: 16.00, categoria: 'Bebidas' },
-        { nome: 'Guaraná zero 2 litros', preco: 16.00, categoria: 'Bebidas' },
+        // --- CATEGORIA: ACOMPANHAMENTOS ---
+        { nome: 'Geleia de pimenta potinho', preco: 5.00, categoria: 'ACOMPANHAMENTOS' },
+        { nome: 'Salada sunomono potinho', preco: 5.00, categoria: 'ACOMPANHAMENTOS' },
+        { nome: 'Shoyu mitsuwa 5 unidades', preco: 5.00, categoria: 'ACOMPANHAMENTOS' },
+        { nome: 'Tarê mitsuwa 5 unidades', preco: 5.00, categoria: 'ACOMPANHAMENTOS' },
+        { nome: 'Shoyu mitsuwa light 5 unidades', preco: 5.00, categoria: 'ACOMPANHAMENTOS' },
+        { nome: 'GENGIBRE/WASABI GRÁTIS', preco: 0.00, categoria: 'ACOMPANHAMENTOS' },
+        { nome: 'PAR DE HASHI', preco: 1.00, categoria: 'ACOMPANHAMENTOS' },
     ];
 
     console.log(`🍣 Criando ${produtos.length} produtos...`);

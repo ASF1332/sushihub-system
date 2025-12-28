@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Box } from '@mui/material';
 
-// --- DEFINIÇÃO DOS TIPOS (Igual ao Banco de Dados) ---
 export interface Cliente {
     id: number;
     nome: string;
@@ -11,7 +10,7 @@ export interface Cliente {
     numero?: string;
     bairro?: string;
     cidade?: string;
-    estado?: string; // <--- O Banco espera 'estado', não 'uf'
+    estado?: string;
     complemento?: string;
 }
 
@@ -24,7 +23,6 @@ interface ClientModalProps {
     clientToEdit?: Cliente | null;
 }
 
-// Objeto inicial vazio
 const emptyClient: NewClientData = {
     nome: '',
     telefone: '',
@@ -33,16 +31,17 @@ const emptyClient: NewClientData = {
     numero: '',
     bairro: '',
     cidade: '',
-    estado: '', // <--- Corrigido aqui
+    estado: '',
     complemento: ''
 };
 
 export function ClientModal({ open, onClose, onSave, clientToEdit }: ClientModalProps) {
     const [clientData, setClientData] = useState<NewClientData | Cliente>(emptyClient);
+    // 1. NOVO: Estado para erros de validação
+    const [errors, setErrors] = useState<{ nome?: string; telefone?: string }>({});
 
     useEffect(() => {
         if (clientToEdit) {
-            // Garante que se o banco trouxe null, converte para string vazia para não dar erro no input
             setClientData({
                 ...clientToEdit,
                 cep: clientToEdit.cep || '',
@@ -56,21 +55,38 @@ export function ClientModal({ open, onClose, onSave, clientToEdit }: ClientModal
         } else {
             setClientData(emptyClient);
         }
+        // Limpa erros ao abrir/fechar
+        setErrors({});
     }, [clientToEdit, open]);
+
+    // 2. NOVO: Função de Máscara de Telefone
+    const formatPhone = (value: string) => {
+        return value
+            .replace(/\D/g, '') // Remove tudo que não é dígito
+            .replace(/^(\d{2})(\d)/g, '($1) $2') // Coloca parênteses no DDD
+            .replace(/(\d)(\d{4})$/, '$1-$2'); // Coloca hífen antes dos últimos 4 dígitos
+    };
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
 
+        // Limpa o erro do campo que está sendo digitado
+        if (errors[name as keyof typeof errors]) {
+            setErrors(prev => ({ ...prev, [name]: undefined }));
+        }
+
         if (name === 'cep') {
-            // Se mudou o CEP, limpa os campos de endereço
             setClientData(prev => ({
                 ...prev,
                 cep: value,
                 logradouro: '',
                 bairro: '',
                 cidade: '',
-                estado: '', // <--- Corrigido
+                estado: '',
             }));
+        } else if (name === 'telefone') {
+            // Aplica a máscara no telefone
+            setClientData(prev => ({ ...prev, [name]: formatPhone(value) }));
         } else {
             setClientData(prev => ({ ...prev, [name]: value }));
         }
@@ -87,21 +103,37 @@ export function ClientModal({ open, onClose, onSave, clientToEdit }: ClientModal
                 console.error("CEP não encontrado");
                 return;
             }
-
-            // Mapeia o retorno do ViaCEP para o nosso padrão
             setClientData(prev => ({
                 ...prev,
                 logradouro: data.logradouro,
                 bairro: data.bairro,
                 cidade: data.localidade,
-                estado: data.uf, // <--- O ViaCEP devolve 'uf', nós salvamos em 'estado'
+                estado: data.uf,
             }));
         } catch (error) {
             console.error("Erro ao buscar CEP:", error);
         }
     };
 
+    // 3. ALTERADO: Validação antes de salvar
     const handleSave = () => {
+        const newErrors: { nome?: string; telefone?: string } = {};
+
+        if (!clientData.nome.trim()) {
+            newErrors.nome = "O nome é obrigatório.";
+        }
+        if (!clientData.telefone.trim()) {
+            newErrors.telefone = "O telefone é obrigatório.";
+        } else if (clientData.telefone.length < 14) {
+            // Validação simples para garantir que o número está completo (ex: (11) 99999-9999)
+            newErrors.telefone = "Telefone inválido.";
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            return; // Para a execução aqui se houver erros
+        }
+
         onSave(clientData);
     };
 
@@ -109,8 +141,30 @@ export function ClientModal({ open, onClose, onSave, clientToEdit }: ClientModal
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
             <DialogTitle>{clientToEdit ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
             <DialogContent sx={{ pt: '20px !important' }}>
-                <TextField autoFocus name="nome" label="Nome Completo" fullWidth value={clientData.nome} onChange={handleChange} sx={{ mb: 2 }}/>
-                <TextField name="telefone" label="Telefone" fullWidth value={clientData.telefone} onChange={handleChange} sx={{ mb: 2 }}/>
+                <TextField
+                    autoFocus
+                    name="nome"
+                    label="Nome Completo"
+                    fullWidth
+                    value={clientData.nome}
+                    onChange={handleChange}
+                    sx={{ mb: 2 }}
+                    // Adiciona feedback visual de erro
+                    error={!!errors.nome}
+                    helperText={errors.nome}
+                />
+                <TextField
+                    name="telefone"
+                    label="Telefone"
+                    fullWidth
+                    value={clientData.telefone}
+                    onChange={handleChange}
+                    sx={{ mb: 2 }}
+                    // Adiciona feedback visual de erro
+                    error={!!errors.telefone}
+                    helperText={errors.telefone}
+                    inputProps={{ maxLength: 15 }} // Limita tamanho da máscara
+                />
 
                 <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(2, 1fr)' }}>
                     <TextField name="cep" label="CEP" value={clientData.cep} onChange={handleChange} onBlur={handleCepBlur} />
@@ -118,10 +172,7 @@ export function ClientModal({ open, onClose, onSave, clientToEdit }: ClientModal
                     <TextField name="numero" label="Número" value={clientData.numero} onChange={handleChange} />
                     <TextField name="bairro" label="Bairro" value={clientData.bairro} onChange={handleChange} />
                     <TextField name="cidade" label="Cidade" value={clientData.cidade} onChange={handleChange} />
-
-                    {/* Campo Estado corrigido */}
                     <TextField name="estado" label="Estado (UF)" value={clientData.estado} onChange={handleChange} />
-
                     <TextField name="complemento" label="Complemento (Opcional)" value={clientData.complemento || ''} onChange={handleChange} sx={{ gridColumn: '1 / -1' }} />
                 </Box>
             </DialogContent>

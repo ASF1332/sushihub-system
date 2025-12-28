@@ -12,7 +12,9 @@ app.use(express.json());
 // --- ROTAS DE INSUMOS ---
 app.get('/api/insumos', async (req, res) => {
     try {
-        const insumos = await prisma.insumo.findMany();
+        const insumos = await prisma.insumo.findMany({
+            orderBy: { id: 'asc' }
+        });
         res.json(insumos);
     } catch (error) {
         res.status(500).json({ error: 'Erro ao buscar insumos' });
@@ -21,14 +23,17 @@ app.get('/api/insumos', async (req, res) => {
 
 app.post('/api/insumos', async (req, res) => {
     try {
-        const { nome, categoria, unidade, estoque, estoqueMinimo } = req.body;
+        // ATUALIZADO: Recebendo 'preco'
+        const { nome, categoria, unidade, estoque, estoqueMinimo, preco } = req.body;
+
         const novo = await prisma.insumo.create({
             data: {
                 nome,
                 categoria,
                 unidade: unidade || 'un',
                 estoque: Number(estoque),
-                estoqueMinimo: Number(estoqueMinimo)
+                estoqueMinimo: Number(estoqueMinimo),
+                preco: Number(preco || 0) // Salva o preço de custo
             }
         });
         res.json(novo);
@@ -40,9 +45,22 @@ app.post('/api/insumos', async (req, res) => {
 app.put('/api/insumos/:id', async (req, res) => {
     const { id } = req.params;
     try {
+        // ATUALIZADO: Garante que os números sejam convertidos corretamente
+        const { nome, categoria, unidade, estoque, estoqueMinimo, preco } = req.body;
+
+        const dadosAtualizar: any = {
+            nome,
+            categoria,
+            unidade
+        };
+
+        if (estoque !== undefined) dadosAtualizar.estoque = Number(estoque);
+        if (estoqueMinimo !== undefined) dadosAtualizar.estoqueMinimo = Number(estoqueMinimo);
+        if (preco !== undefined) dadosAtualizar.preco = Number(preco);
+
         const atualizado = await prisma.insumo.update({
             where: { id: Number(id) },
-            data: req.body
+            data: dadosAtualizar
         });
         res.json(atualizado);
     } catch (error) {
@@ -53,6 +71,9 @@ app.put('/api/insumos/:id', async (req, res) => {
 app.delete('/api/insumos/:id', async (req, res) => {
     const { id } = req.params;
     try {
+        // Primeiro apaga as referências na ficha técnica para não dar erro
+        await prisma.fichaTecnica.deleteMany({ where: { insumoId: Number(id) } });
+
         await prisma.insumo.delete({ where: { id: Number(id) } });
         res.json({ message: 'Insumo deletado' });
     } catch (error) {
@@ -64,7 +85,8 @@ app.delete('/api/insumos/:id', async (req, res) => {
 app.get('/api/produtos', async (req, res) => {
     try {
         const produtos = await prisma.produto.findMany({
-            include: { fichaTecnica: true }
+            include: { fichaTecnica: true },
+            orderBy: { nome: 'asc' }
         });
         res.json(produtos);
     } catch (error) {
@@ -74,11 +96,15 @@ app.get('/api/produtos', async (req, res) => {
 
 app.post('/api/produtos', async (req, res) => {
     try {
-        const { nome, preco, categoria, fichaTecnica } = req.body;
+        // ATUALIZADO: Recebendo 'precoPromocional'
+        const { nome, preco, categoria, fichaTecnica, precoPromocional } = req.body;
+
         const novo = await prisma.produto.create({
             data: {
                 nome,
                 preco: Number(preco),
+                // Se vier valor, salva número, se não, salva null
+                precoPromocional: precoPromocional ? Number(precoPromocional) : null,
                 categoria,
                 fichaTecnica: {
                     create: fichaTecnica.map((item: any) => ({
@@ -96,10 +122,10 @@ app.post('/api/produtos', async (req, res) => {
     }
 });
 
-// --- ROTA DE ATUALIZAR PRODUTO (CORRIGIDA) ---
 app.put('/api/produtos/:id', async (req, res) => {
     const { id } = req.params;
-    const { nome, preco, categoria, fichaTecnica } = req.body;
+    // ATUALIZADO: Recebendo 'precoPromocional'
+    const { nome, preco, categoria, fichaTecnica, precoPromocional } = req.body;
 
     try {
         const atualizado = await prisma.produto.update({
@@ -107,11 +133,10 @@ app.put('/api/produtos/:id', async (req, res) => {
             data: {
                 nome,
                 preco: Number(preco),
+                precoPromocional: precoPromocional ? Number(precoPromocional) : null,
                 categoria,
                 fichaTecnica: {
-                    // 1. Apaga os ingredientes antigos
-                    deleteMany: {},
-                    // 2. Cria os novos ingredientes atualizados
+                    deleteMany: {}, // Limpa ficha antiga
                     create: fichaTecnica.map((item: any) => ({
                         insumoId: Number(item.insumoId),
                         quantidade: Number(item.quantidade)
@@ -130,11 +155,6 @@ app.put('/api/produtos/:id', async (req, res) => {
 app.delete('/api/produtos/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        // O Prisma deleta a ficha técnica automaticamente se configurado como Cascade,
-        // mas por segurança deletamos a ficha antes ou usamos deleteMany na transaction.
-        // Como simplificação aqui, vamos deletar o produto e o Prisma cuida do resto se o schema permitir,
-        // mas para garantir sem erro de chave estrangeira:
-
         const deleteFicha = prisma.fichaTecnica.deleteMany({
             where: { produtoId: Number(id) }
         });
@@ -185,6 +205,7 @@ app.post('/api/pedidos', async (req, res) => {
                 include: { itens: true }
             });
 
+            // Baixa de Estoque
             for (const itemPedido of itens) {
                 const produto = await tx.produto.findUnique({
                     where: { id: itemPedido.produtoId },
@@ -222,24 +243,12 @@ app.put('/api/pedidos/:id', async (req, res) => {
     }
 });
 
-// --- ROTAS DE CLIENTES ---
-app.get('/api/clientes', async (req, res) => {
-    try {
-        const clientes = await prisma.cliente.findMany();
-        res.json(clientes);
-    } catch (error) {
-        res.status(500).json({ error: 'Erro ao buscar clientes' });
-    }
-});
-
-// Deletar Pedido (Com opção de estorno de estoque)
 app.delete('/api/pedidos/:id', async (req, res) => {
     const { id } = req.params;
-    const devolverEstoque = req.query.devolverEstoque === 'true'; // Lê o parâmetro da URL
+    const devolverEstoque = req.query.devolverEstoque === 'true';
 
     try {
         await prisma.$transaction(async (tx: any) => {
-            // 1. Se for para devolver, precisamos ver o que tinha no pedido ANTES de deletar
             if (devolverEstoque) {
                 const pedido = await tx.pedido.findUnique({
                     where: { id: Number(id) },
@@ -248,7 +257,6 @@ app.delete('/api/pedidos/:id', async (req, res) => {
 
                 if (pedido) {
                     for (const itemPedido of pedido.itens) {
-                        // Busca a ficha técnica do produto
                         const produto = await tx.produto.findUnique({
                             where: { id: itemPedido.produtoId },
                             include: { fichaTecnica: true }
@@ -256,14 +264,10 @@ app.delete('/api/pedidos/:id', async (req, res) => {
 
                         if (produto && produto.fichaTecnica) {
                             for (const insumoFicha of produto.fichaTecnica) {
-                                // Cálculo inverso: Devolve a quantidade gasta
                                 const qtdDevolver = insumoFicha.quantidade * itemPedido.quantidade;
-
                                 await tx.insumo.update({
                                     where: { id: insumoFicha.insumoId },
-                                    data: {
-                                        estoque: { increment: qtdDevolver } // <--- INCREMENTA O ESTOQUE
-                                    }
+                                    data: { estoque: { increment: qtdDevolver } }
                                 });
                             }
                         }
@@ -271,22 +275,24 @@ app.delete('/api/pedidos/:id', async (req, res) => {
                 }
             }
 
-            // 2. Apaga os itens do pedido (necessário por causa das chaves estrangeiras)
-            await tx.itemPedido.deleteMany({
-                where: { pedidoId: Number(id) }
-            });
-
-            // 3. Apaga o pedido
-            await tx.pedido.delete({
-                where: { id: Number(id) }
-            });
+            await tx.itemPedido.deleteMany({ where: { pedidoId: Number(id) } });
+            await tx.pedido.delete({ where: { id: Number(id) } });
         });
 
         res.json({ message: 'Pedido deletado com sucesso' });
-
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Erro ao deletar pedido' });
+    }
+});
+
+// --- ROTAS DE CLIENTES ---
+app.get('/api/clientes', async (req, res) => {
+    try {
+        const clientes = await prisma.cliente.findMany({ orderBy: { nome: 'asc' }});
+        res.json(clientes);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao buscar clientes' });
     }
 });
 
