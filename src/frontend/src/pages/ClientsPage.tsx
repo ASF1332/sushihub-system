@@ -46,6 +46,7 @@ export function ClientsPage() {
     }, []);
 
     const filteredClientes = useMemo(() => {
+        if (!Array.isArray(clientes)) return [];
         return clientes.filter(cliente => {
             const nome = cliente.nome || '';
             const telefone = cliente.telefone || '';

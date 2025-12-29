@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
     Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Button, IconButton, CircularProgress, Snackbar, Alert, Chip, TextField, InputAdornment,
-    Collapse, Autocomplete, Select, MenuItem
+    Collapse, Autocomplete, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -10,12 +10,15 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
+import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder'; // Ícone para Novo Grupo
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-
+import CloseIcon from '@mui/icons-material/Close';
 import { ProductModal } from '../components/ProductModal';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { useLocation } from 'react-router-dom';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 // --- TIPOS ---
 interface Insumo { id: number; nome: string; unidade: string; preco: number; }
@@ -24,7 +27,7 @@ interface Produto {
     id: number;
     nome: string;
     preco: number;
-    precoPromocional?: number | null; // NOVO CAMPO: Preço com desconto
+    precoPromocional?: number | null;
     categoria: string;
     fichaTecnica: FichaTecnicaItem[];
 }
@@ -79,7 +82,10 @@ const EditableCell = ({
                     cursor: 'pointer',
                     userSelect: 'none',
                     height: '40px',
-                    '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
+                    // Aqui aplicamos a animação de pulsar o fundo
+                    '&:hover': {
+                        animation: 'pulseCell 1.5s infinite ease-in-out'
+                    },
                     ...sx
                 }}
             >
@@ -137,6 +143,7 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
     onUpdateInsumoGlobal: (id: number, data: Partial<Insumo>) => void,
     onEdit: (p: Produto) => void,
     onDelete: (id: number) => void
+    showValues: boolean
 }) {
     const [open, setOpen] = useState(false);
     const [selectedInsumoId, setSelectedInsumoId] = useState<number | ''>('');
@@ -154,15 +161,9 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
     }, 0);
 
     // --- CÁLCULOS DE DESCONTO ---
-    // Se tiver preço promocional, o desconto é (Preço - Promo). Se não, é 0.
     const valorDesconto = row.precoPromocional ? (row.preco - row.precoPromocional) : 0;
-
-    // Porcentagem: (Desconto / Preço) * 100
     const porcentagemDesconto = row.preco > 0 ? (valorDesconto / row.preco) * 100 : 0;
-
-    // Preço Final é o promocional (se existir) ou o original
     const precoFinal = row.precoPromocional || row.preco;
-
     const lucroBruto = precoFinal - custoTotalProducao;
     const margemLucro = precoFinal > 0 ? (lucroBruto / precoFinal) * 100 : 0;
 
@@ -217,30 +218,73 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
         setEditingCell(null);
         const descontoDigitado = Number(value);
 
-        // Se o desconto for 0 ou negativo, remove a promoção
         if (descontoDigitado <= 0) {
             onUpdateProduct({ ...row, precoPromocional: null });
         } else {
-            // Calcula o novo preço promocional: Original - Desconto
             const novoPrecoPromocional = row.preco - descontoDigitado;
             onUpdateProduct({ ...row, precoPromocional: novoPrecoPromocional });
         }
     };
 
+    const handleMainProductSave = (field: string, value: any) => {
+        setEditingCell(null);
+        const updatedProduct = { ...row };
+
+        if (field === 'nome') {
+            updatedProduct.nome = value;
+        } else if (field === 'preco') {
+            // Remove "R$", espaços e troca vírgula por ponto para salvar no banco
+            const cleanValue = String(value).replace('R$', '').replace(/\s/g, '').replace(',', '.');
+            const novoPreco = Number(cleanValue);
+
+            if (!isNaN(novoPreco)) {
+                updatedProduct.preco = novoPreco;
+            }
+        }
+        onUpdateProduct(updatedProduct);
+    };
+
     return (
         <>
+        <style>
+            {`
+                @keyframes floatCard {
+                    0% { transform: translateY(0px); }
+                    50% { transform: translateY(-6px); }
+                    100% { transform: translateY(0px); }
+                }
+                @keyframes pulseCell {
+                    0% { background-color: rgba(0, 0, 0, 0.02); }
+                    50% { background-color: rgba(0, 0, 0, 0.12); } 
+                    100% { background-color: rgba(0, 0, 0, 0.02); }
+                }
+                `}
+        </style>
+
             <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
                 <TableCell>
                     <IconButton size="small" onClick={() => setOpen(!open)}>
                         {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                     </IconButton>
                 </TableCell>
-                <TableCell component="th" scope="row">{row.nome}</TableCell>
+                {/* --- COLUNA NOME EDITÁVEL --- */}
+                <EditableCell
+                    value={row.nome}
+                    isEditing={editingCell?.type === 'produto' && editingCell?.id === row.id && editingCell?.field === 'nome'}
+                    onDoubleClick={() => setEditingCell({ type: 'produto', id: row.id, field: 'nome' })}
+                    onSave={(val: any) => handleMainProductSave('nome', val)}
+                    onCancel={() => setEditingCell(null)}
+                />
 
-                {/* Preço Original */}
-                <TableCell>{row.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                {/* --- COLUNA PREÇO EDITÁVEL --- */}
+                <EditableCell
+                    value={row.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    isEditing={editingCell?.type === 'produto' && editingCell?.id === row.id && editingCell?.field === 'preco'}
+                    onDoubleClick={() => setEditingCell({ type: 'produto', id: row.id, field: 'preco' })}
+                    onSave={(val: any) => handleMainProductSave('preco', val)}
+                    onCancel={() => setEditingCell(null)}
+                />
 
-                {/* --- NOVA COLUNA: DESCONTO R$ (EDITÁVEL) --- */}
                 <EditableCell
                     value={valorDesconto > 0 ? valorDesconto.toFixed(2) : '0.00'}
                     type="number"
@@ -252,23 +296,20 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
                     onCancel={() => setEditingCell(null)}
                 />
 
-                {/* --- NOVA COLUNA: DESCONTO % (CALCULADO) --- */}
                 <TableCell align="right" sx={{ color: porcentagemDesconto > 0 ? 'error.main' : 'text.secondary' }}>
                     {porcentagemDesconto > 0 ? `-${porcentagemDesconto.toFixed(1)}%` : '-'}
                 </TableCell>
 
-                {/* --- NOVA COLUNA: PREÇO FINAL (CALCULADO) --- */}
                 <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
                     {precoFinal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </TableCell>
 
                 <TableCell align="right">
-                    <IconButton size="small" color="secondary" onClick={() => onEdit(row)}><EditIcon /></IconButton>
                     <IconButton size="small" color="error" onClick={() => onDelete(row.id)}><DeleteIcon /></IconButton>
                 </TableCell>
             </TableRow>
             <TableRow>
-                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={9}> {/* Aumentei o ColSpan para cobrir as novas colunas */}
+                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={9}>
                     <Collapse in={open} timeout="auto" unmountOnExit>
                         <Box sx={{ margin: 2, backgroundColor: '#f9f9f9', p: 2, borderRadius: 2 }}>
                             <Typography variant="h6" gutterBottom component="div" sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
@@ -458,7 +499,20 @@ export function ProductsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; productId: number | null }>({ open: false, productId: null });
+    const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<{ open: boolean; categoryName: string | null }>({ open: false, categoryName: null });
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' } | null>(null);
+    const [showValues, setShowValues] = useState(() => {
+        const saved = localStorage.getItem('sushihub_showValues');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('sushihub_showValues', JSON.stringify(showValues));
+    }, [showValues]);
+
+    // --- ESTADOS PARA NOVO GRUPO ---
+    const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+    const [newGroupName, setNewGroupName] = useState('');
 
     useEffect(() => {
         setLoading(true);
@@ -499,13 +553,35 @@ export function ProductsPage() {
 
     const categories = useMemo(() => {
         if (loading) return [];
-        const productsByCategory = produtos.reduce((acc, product) => {
-            if (!acc[product.categoria]) acc[product.categoria] = 0;
-            acc[product.categoria]++;
+        if (!Array.isArray(produtos)) return [];
+
+        // Agora guardamos CONTAGEM e VALOR
+        const statsByCategory = produtos.reduce((acc, product) => {
+            const cat = product.categoria;
+            if (!cat || cat.trim() === '') return acc;
+
+            if (!acc[cat]) {
+                acc[cat] = { count: 0, value: 0 };
+            }
+
+            acc[cat].count++;
+            acc[cat].value += product.preco; // Soma o preço
             return acc;
-        }, {} as Record<string, number>);
-        return Object.entries(productsByCategory).map(([name, count]) => ({ name, count }));
+        }, {} as Record<string, { count: number; value: number }>);
+
+        return Object.entries(statsByCategory).map(([name, data]) => ({
+            name,
+            count: data.count,
+            value: data.value // Retorna o valor somado
+        }));
     }, [produtos, loading]);
+
+    const totalMenuValue = useMemo(() => {
+        // --- PROTEÇÃO: Se produtos não for uma lista, o total é 0 ---
+        if (!Array.isArray(produtos)) return 0;
+
+        return produtos.reduce((acc, curr) => acc + curr.preco, 0);
+    }, [produtos]);
 
     const filteredProducts = useMemo(() => {
         if (searchTerm) {
@@ -534,21 +610,90 @@ export function ProductsPage() {
         }
     };
 
+    const handleDeleteCategoryClick = (categoryName: string) => {
+        setDeleteCategoryConfirm({ open: true, categoryName });
+    };
+
+    const confirmDeleteCategory = async () => {
+        const categoryName = deleteCategoryConfirm.categoryName;
+        if (!categoryName) return;
+
+        // 1. Filtra produtos da categoria
+        const productsToDelete = produtos.filter(p => p.categoria === categoryName);
+
+        try {
+            // 2. Apaga um por um no banco
+            await Promise.all(productsToDelete.map(product =>
+                fetch(`${import.meta.env.VITE_API_URL}/api/produtos/${product.id}`, { method: 'DELETE' })
+            ));
+
+            // 3. Atualiza a tela
+            setProdutos(prev => prev.filter(p => p.categoria !== categoryName));
+            setSnackbar({ open: true, message: `Grupo "${categoryName}" excluído!`, severity: 'success' });
+        } catch (error) {
+            setSnackbar({ open: true, message: 'Erro ao excluir grupo.', severity: 'error' });
+        } finally {
+            setDeleteCategoryConfirm({ open: false, categoryName: null });
+        }
+    };
+
     const handleEdit = (produto: Produto) => { setEditingProduct(produto); setIsModalOpen(true); };
-    const handleNew = () => { setEditingProduct(null); setIsModalOpen(true); };
+
+    // --- LÓGICA DO BOTÃO NOVO PRODUTO ---
+    const handleNewProduct = () => {
+        setEditingProduct(null); // Abre modal vazio
+        setIsModalOpen(true);
+    };
+
+    // --- LÓGICA DO BOTÃO NOVO GRUPO ---
+    const handleNewGroupClick = () => {
+        setNewGroupName('');
+        setIsGroupDialogOpen(true);
+    };
+
+    const handleConfirmNewGroup = () => {
+        if (!newGroupName.trim()) {
+            setSnackbar({ open: true, message: 'Digite um nome para o grupo.', severity: 'error' });
+            return;
+        }
+        setIsGroupDialogOpen(false);
+        // Truque: Cria um "Produto Modelo" com ID 0, mas com a categoria preenchida
+        // O Modal vai abrir e o usuário só precisa preencher o nome e preço do primeiro item
+        setEditingProduct({
+            id: 0,
+            nome: '',
+            preco: 0,
+            categoria: newGroupName,
+            fichaTecnica: []
+        });
+        setIsModalOpen(true);
+    };
 
     const handleSaveProduct = (productData: NewProductData | Produto) => {
-        const isEditing = 'id' in productData;
-        const url = isEditing ? `${import.meta.env.VITE_API_URL}/api/produtos/${productData.id}` : `${import.meta.env.VITE_API_URL}/api/produtos`;
+        // VALIDAÇÃO IMPORTANTE: Impede salvar sem nome ou categoria
+        if (!productData.nome || !productData.categoria) {
+            setSnackbar({ open: true, message: 'Erro: Nome e Categoria são obrigatórios!', severity: 'error' });
+            return;
+        }
+
+        const isEditing = 'id' in productData && (productData as Produto).id !== 0;
+        const url = isEditing ? `${import.meta.env.VITE_API_URL}/api/produtos/${(productData as Produto).id}` : `${import.meta.env.VITE_API_URL}/api/produtos`;
         const method = isEditing ? 'PUT' : 'POST';
 
-        fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productData) })
+        // Se for criação (ID 0), remove o ID antes de enviar
+        const bodyData = { ...productData };
+        if (!isEditing && 'id' in bodyData) {
+            // @ts-ignore
+            delete bodyData.id;
+        }
+
+        fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyData) })
             .then(res => res.json())
             .then(savedProduct => {
                 if (isEditing) setProdutos(prev => prev.map(p => p.id === savedProduct.id ? savedProduct : p));
                 else setProdutos(prev => [...prev, savedProduct]);
                 if (isModalOpen) setIsModalOpen(false);
-                setSnackbar({ open: true, message: 'Produto atualizado!', severity: 'success' });
+                setSnackbar({ open: true, message: 'Produto salvo com sucesso!', severity: 'success' });
             })
             .catch(() => setSnackbar({ open: true, message: 'Erro ao salvar.', severity: 'error' }));
     };
@@ -560,6 +705,28 @@ export function ProductsPage() {
 
     return (
         <Box sx={{ p: 3, flexGrow: 1 }}>
+            {/* --- AQUI ESTÃO AS ANIMAÇÕES CORRIGIDAS --- */}
+            <style>
+                {`
+                @keyframes floatCard {
+                    0% {
+                        transform: translateY(0px) scale(1);
+                    }
+                    50% {
+                        transform: translateY(-4px) scale(1.01);  /* Sobe e aumenta levemente */
+                    }
+                    100% {
+                        transform: translateY(0px) scale(1);
+                    }
+                }
+                
+                @keyframes pulseCell {
+                    0% { background-color: rgba(0, 0, 0, 0.02); }
+                    50% { background-color: rgba(0, 0, 0, 0.12); } 
+                    100% { background-color: rgba(0, 0, 0, 0.02); }
+                }
+                `}
+            </style>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     {(selectedCategory || searchTerm) && (
@@ -568,11 +735,52 @@ export function ProductsPage() {
                         </Button>
                     )}
                     <Typography variant="h4" fontWeight="bold">{pageTitle}</Typography>
+
                     {!selectedCategory && !searchTerm && (
-                        <Chip icon={<RestaurantIcon />} label={`${produtos.length} produtos`} color="primary" variant="outlined" sx={{ fontWeight: 'bold' }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 2 }}>
+                            <Chip
+                                icon={<RestaurantIcon />}
+                                label={`${produtos.length} produtos`}
+                                color="primary"
+                                variant="outlined"
+                                sx={{ fontWeight: 'bold' }}
+                            />
+
+                            {/* O CHIP DE VALOR CONTINUA AQUI */}
+                            <Chip
+                                label={showValues
+                                    ? totalMenuValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                                    : "R$ -----"}
+                                color="success"
+                                variant="outlined"
+                                sx={{ fontWeight: 'bold', bgcolor: 'rgba(46, 125, 50, 0.05)', borderColor: '#2e7d32' }}
+                            />
+                        </Box>
                     )}
                 </Box>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={handleNew}>Novo Produto</Button>
+
+                {/* --- BOTÕES E OLHINHO AQUI NA DIREITA --- */}
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    {/* O BOTÃO DO OLHO VEIO PARA CÁ */}
+                    <IconButton onClick={() => setShowValues(!showValues)} sx={{ mr: 1 }}>
+                        {showValues ? <Visibility color="primary" /> : <VisibilityOff color="action" />}
+                    </IconButton>
+
+                    <Button
+                        variant="outlined"
+                        startIcon={<CreateNewFolderIcon />}
+                        onClick={handleNewGroupClick}
+                    >
+                        Novo Grupo
+                    </Button>
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={handleNewProduct}
+                    >
+                        Novo Produto
+                    </Button>
+                </Box>
             </Box>
 
             <Paper sx={{ p: 2, mb: 3 }} elevation={1}>
@@ -589,9 +797,57 @@ export function ProductsPage() {
             {!selectedCategory && !searchTerm ? (
                 <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
                     {categories.map(category => (
-                        <Paper key={category.name} onClick={() => setSelectedCategory(category.name)} sx={{ p: 2, cursor: 'pointer', boxShadow: 3, transition: 'transform 0.2s', '&:hover': { transform: 'translateY(-5px)', boxShadow: 6 }, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px' }}>
-                            <Typography variant="h6">{category.name}</Typography>
-                            <Typography fontWeight="bold" align="right">{category.count} itens</Typography>
+                        <Paper
+                            key={category.name}
+                            onClick={() => setSelectedCategory(category.name)}
+                            sx={{
+                                position: 'relative',
+                                p: 2,
+                                cursor: 'pointer',
+                                boxShadow: 3,
+                                '&:hover': {
+                                    animation: 'floatCard 1.5s infinite ease-in-out',
+                                    boxShadow: 10,
+                                    zIndex: 2
+                                },
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between',
+                                minHeight: '120px'
+                            }}
+                        >
+                            {/* BOTÃO X */}
+                            <IconButton
+                                size="small"
+                                color="error"
+                                sx={{ position: 'absolute', top: 5, right: 5, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.8)' }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteCategoryClick(category.name);
+                                }}
+                            >
+                                <CloseIcon fontSize="small" />
+                            </IconButton>
+
+                            {/* Nome da Categoria */}
+                            <Typography variant="h6" sx={{ mt: 2, fontWeight: 'bold', lineHeight: 1.2 }}>
+                                {category.name}
+                            </Typography>
+
+                            {/* RODAPÉ DO CARD: Valor e Quantidade */}
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mt: 2 }}>
+                                {/* Valor (Respeita o Olhinho) */}
+                                <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 'bold', fontSize: '1rem' }}>
+                                    {showValues
+                                        ? category.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                                        : "R$ -----"}
+                                </Typography>
+
+                                {/* Quantidade */}
+                                <Typography color="text.primary" fontWeight="bold" align="right">
+                                    {category.count} itens
+                                </Typography>
+                            </Box>
                         </Paper>
                     ))}
                 </Box>
@@ -620,6 +876,7 @@ export function ProductsPage() {
                                         onUpdateInsumoGlobal={handleUpdateInsumoGlobal}
                                         onEdit={handleEdit}
                                         onDelete={handleDelete}
+                                        showValues={showValues}
                                     />
                                 ))}
                                 {filteredProducts.length === 0 && (
@@ -635,7 +892,40 @@ export function ProductsPage() {
 
             <ProductModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveProduct} productToEdit={editingProduct} />
             <ConfirmationDialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, productId: null })} onConfirm={confirmDelete} title="Confirmar Exclusão" message="Tem certeza que deseja excluir este produto?" />
+
+            <ConfirmationDialog
+                open={deleteCategoryConfirm.open}
+                onClose={() => setDeleteCategoryConfirm({ open: false, categoryName: null })}
+                onConfirm={confirmDeleteCategory}
+                title="Excluir Grupo Inteiro?"
+                message={`ATENÇÃO: Isso excluirá o grupo "${deleteCategoryConfirm.categoryName}" e TODOS os produtos dele do banco de dados.`}
+            />
+
             {snackbar && <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar(null)}><Alert severity={snackbar.severity}>{snackbar.message}</Alert></Snackbar>}
+
+            {/* --- DIALOG PARA CRIAR NOVO GRUPO --- */}
+            <Dialog open={isGroupDialogOpen} onClose={() => setIsGroupDialogOpen(false)}>
+                <DialogTitle>Criar Novo Grupo</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                        Digite o nome do novo grupo (ex: Bebidas, Temakis).
+                        Em seguida, você precisará cadastrar o primeiro produto deste grupo.
+                    </Typography>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Nome do Grupo"
+                        fullWidth
+                        variant="outlined"
+                        value={newGroupName}
+                        onChange={(e) => setNewGroupName(e.target.value)}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setIsGroupDialogOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleConfirmNewGroup} variant="contained">Criar e Adicionar Produto</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

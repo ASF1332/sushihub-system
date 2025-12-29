@@ -39,6 +39,11 @@ export default function Financeiro() {
     }, []);
 
     const dadosFinanceiros = useMemo(() => {
+        // --- PROTEÇÃO: Se o backend falhar, retorna tudo zerado para não quebrar a tela ---
+        if (!Array.isArray(pedidos)) {
+            return { faturamentoTotal: 0, ticketMedio: 0, qtdPedidos: 0, dataPizza: [], dataBarras: [], ultimosPedidos: [] };
+        }
+
         // 1. Filtra cancelados para não somar no faturamento
         const ativos = pedidos.filter(p => p.status !== 'Cancelado');
 

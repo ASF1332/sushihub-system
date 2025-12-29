@@ -1,29 +1,11 @@
 import { useState, useEffect } from 'react';
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    Button,
-    Box,
-    Select,
-    MenuItem,
-    InputLabel,
-    FormControl,
-    IconButton,
-    Typography,
-    List,
-    ListItem,
-    ListItemText,
-    Autocomplete // OBRIGATÓRIO
-} from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Box, Select, MenuItem, InputLabel, FormControl, IconButton, Typography, List, ListItem, ListItemText, Autocomplete } from '@mui/material';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 // Interfaces
 interface Produto { id: number; nome: string; preco: number; }
-interface Cliente { id: number; nome: string; telefone: string; }
+interface Cliente { id: number; nome: string; telefone: string; } // Nova interface para Clientes
 interface ItemPedido { produtoId: number; quantidade: number; nomeProduto: string; precoUnitario: number; }
 
 interface PedidoModalProps {
@@ -34,46 +16,51 @@ interface PedidoModalProps {
 
 export function PedidoModal({ open, onClose, onSave }: PedidoModalProps) {
     const [produtos, setProdutos] = useState<Produto[]>([]);
-    const [clientes, setClientes] = useState<Cliente[]>([]);
+    const [clientes, setClientes] = useState<Cliente[]>([]); // Estado para guardar a lista de clientes
 
     // Dados do Pedido
-    const [clienteNome, setClienteNome] = useState('');
+    const [clienteNome, setClienteNome] = useState(''); // Guarda o nome (digitado ou selecionado)
     const [telefone, setTelefone] = useState('');
     const [canal, setCanal] = useState('Local');
     const [itens, setItens] = useState<ItemPedido[]>([]);
 
     // Dados do Item sendo adicionado
-    // Agora guardamos o objeto Produto inteiro, não só o ID
-    const [selectedProd, setSelectedProd] = useState<Produto | null>(null);
+    const [selectedProdId, setSelectedProdId] = useState<string>('');
     const [quantidade, setQuantidade] = useState(1);
 
     // Busca dados ao abrir
     useEffect(() => {
         if (open) {
+            // Busca Produtos
             fetch(`${import.meta.env.VITE_API_URL}/api/produtos`)
                 .then(res => res.json())
                 .then(setProdutos);
 
+            // Busca Clientes (NOVO)
             fetch(`${import.meta.env.VITE_API_URL}/api/clientes`)
                 .then(res => res.json())
                 .then(setClientes);
 
+            // Resetar formulário
             setClienteNome('');
             setTelefone('');
             setCanal('Local');
             setItens([]);
-            setSelectedProd(null);
+            setSelectedProdId('');
             setQuantidade(1);
         }
     }, [open]);
 
+    // Função inteligente ao selecionar cliente
     const handleClienteChange = (_event: any, newValue: Cliente | string | null) => {
         if (typeof newValue === 'string') {
+            // Se digitou um nome novo
             setClienteNome(newValue);
             setTelefone('');
         } else if (newValue && typeof newValue === 'object') {
+            // Se selecionou da lista
             setClienteNome(newValue.nome);
-            setTelefone(newValue.telefone);
+            setTelefone(newValue.telefone); // <-- PREENCHE O TELEFONE AUTOMATICAMENTE
         } else {
             setClienteNome('');
             setTelefone('');
@@ -81,17 +68,19 @@ export function PedidoModal({ open, onClose, onSave }: PedidoModalProps) {
     };
 
     const handleAddItem = () => {
-        if (selectedProd) {
+        const produto = produtos.find(p => p.id === Number(selectedProdId));
+        if (produto) {
             const novoItem: ItemPedido = {
-                produtoId: selectedProd.id,
-                nomeProduto: selectedProd.nome,
+                produtoId: produto.id,
+                nomeProduto: produto.nome,
                 quantidade: Number(quantidade),
-                precoUnitario: selectedProd.preco
+                precoUnitario: produto.preco
             };
+            // Adiciona o novo item à lista existente
             setItens(prevItens => [...prevItens, novoItem]);
 
-            // Reseta seleção
-            setSelectedProd(null);
+            // Reseta os campos de seleção de produto
+            setSelectedProdId('');
             setQuantidade(1);
         }
     };
@@ -102,6 +91,7 @@ export function PedidoModal({ open, onClose, onSave }: PedidoModalProps) {
         setItens(novosItens);
     };
 
+    // Recalcula o total sempre que a lista de itens mudar
     const valorTotal = itens.reduce((acc, item) => acc + (item.precoUnitario * item.quantidade), 0);
 
     const handleSave = () => {
@@ -121,25 +111,15 @@ export function PedidoModal({ open, onClose, onSave }: PedidoModalProps) {
             <DialogContent sx={{ pt: '20px !important' }}>
 
                 <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                    {/* CAMPO DE BUSCA DE CLIENTE */}
+                    {/* CAMPO DE BUSCA DE CLIENTE INTELIGENTE */}
                     <Autocomplete
-                        freeSolo
+                        freeSolo // Permite digitar um nome que não está na lista
                         options={clientes}
                         getOptionLabel={(option) => typeof option === 'string' ? option : option.nome}
                         value={clienteNome}
                         onChange={handleClienteChange}
                         onInputChange={(_, newInputValue) => setClienteNome(newInputValue)}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Cliente (Busca)"
-                                fullWidth
-                                inputProps={{
-                                    ...params.inputProps,
-                                    autoComplete: 'new-password', // Remove histórico preto
-                                }}
-                            />
-                        )}
+                        renderInput={(params) => <TextField {...params} label="Cliente (Busca)" fullWidth />}
                         sx={{ flexGrow: 1 }}
                     />
 
@@ -163,27 +143,20 @@ export function PedidoModal({ open, onClose, onSave }: PedidoModalProps) {
                 <Typography variant="h6" sx={{ mt: 2 }}>Adicionar Produtos</Typography>
 
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mt: 1, mb: 2, bgcolor: '#f5f5f5', p: 2, borderRadius: 1 }}>
-
-                    {/* --- AQUI ESTÁ O NOVO FILTRO DE PRODUTOS --- */}
-                    <Autocomplete
-                        options={produtos}
-                        getOptionLabel={(option) => `${option.nome} - R$ ${option.preco.toFixed(2)}`}
-                        value={selectedProd}
-                        onChange={(_event, newValue) => setSelectedProd(newValue)}
-                        fullWidth
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Pesquisar Produto..."
-                                placeholder="Digite para buscar"
-                                inputProps={{
-                                    ...params.inputProps,
-                                    autoComplete: 'new-password', // Remove histórico preto
-                                }}
-                            />
-                        )}
-                    />
-
+                    <FormControl fullWidth>
+                        <InputLabel>Produto</InputLabel>
+                        <Select
+                            value={selectedProdId}
+                            label="Produto"
+                            onChange={(e) => setSelectedProdId(e.target.value)}
+                        >
+                            {produtos.map(p => (
+                                <MenuItem key={p.id} value={p.id}>
+                                    {p.nome} - R$ {p.preco.toFixed(2)}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
                     <TextField
                         label="Qtd"
                         type="number"
@@ -191,11 +164,11 @@ export function PedidoModal({ open, onClose, onSave }: PedidoModalProps) {
                         value={quantidade}
                         onChange={e => setQuantidade(Number(e.target.value))}
                     />
-
+                    {/* O Botão + só habilita se tiver um produto selecionado */}
                     <IconButton
                         color="primary"
                         onClick={handleAddItem}
-                        disabled={!selectedProd}
+                        disabled={!selectedProdId}
                     >
                         <AddCircleIcon fontSize="large" />
                     </IconButton>
@@ -224,6 +197,7 @@ export function PedidoModal({ open, onClose, onSave }: PedidoModalProps) {
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Cancelar</Button>
+                {/* O Botão Criar só habilita se tiver Cliente E pelo menos 1 item */}
                 <Button
                     onClick={handleSave}
                     variant="contained"

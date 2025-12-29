@@ -32,7 +32,15 @@ export function PedidosPage() {
     const fetchPedidos = () => {
         fetch(`${import.meta.env.VITE_API_URL}/api/pedidos`)
             .then(res => res.json())
-            .then(setPedidos);
+            .then(data => {
+                // --- PROTEÇÃO: Só salva se for uma lista de verdade ---
+                if (Array.isArray(data)) {
+                    setPedidos(data);
+                } else {
+                    setPedidos([]); // Se der erro, limpa a lista para não travar
+                }
+            })
+            .catch(() => setPedidos([])); // Se a conexão cair, também limpa
     };
 
     useEffect(() => {

@@ -5,7 +5,6 @@ import {
     Collapse, Autocomplete, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
@@ -17,6 +16,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import { ProductModal } from '../components/ProductModal';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { useLocation } from 'react-router-dom';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 // --- TIPOS ---
 interface Insumo { id: number; nome: string; unidade: string; preco: number; }
@@ -134,13 +135,14 @@ const EditableCell = ({
 };
 
 // --- COMPONENTE DA LINHA EXPANSÍVEL (ProductRow) ---
-function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, onEdit, onDelete }: {
+function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, onDelete, showValues }: {
     row: Produto,
     allInsumos: Insumo[],
     onUpdateProduct: (p: Produto) => void,
     onUpdateInsumoGlobal: (id: number, data: Partial<Insumo>) => void,
     onEdit: (p: Produto) => void,
     onDelete: (id: number) => void
+    showValues: boolean
 }) {
     const [open, setOpen] = useState(false);
     const [selectedInsumoId, setSelectedInsumoId] = useState<number | ''>('');
@@ -275,20 +277,20 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
 
                 {/* --- COLUNA PREÇO EDITÁVEL --- */}
                 <EditableCell
-                    value={row.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    value={showValues ? row.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ -----'}
                     isEditing={editingCell?.type === 'produto' && editingCell?.id === row.id && editingCell?.field === 'preco'}
-                    onDoubleClick={() => setEditingCell({ type: 'produto', id: row.id, field: 'preco' })}
+                    onDoubleClick={() => showValues && setEditingCell({ type: 'produto', id: row.id, field: 'preco' })}
                     onSave={(val: any) => handleMainProductSave('preco', val)}
                     onCancel={() => setEditingCell(null)}
                 />
 
                 <EditableCell
-                    value={valorDesconto > 0 ? valorDesconto.toFixed(2) : '0.00'}
+                    value={showValues ? (valorDesconto > 0 ? valorDesconto.toFixed(2) : '0.00') : '-----'}
                     type="number"
                     align="right"
                     sx={{ color: valorDesconto > 0 ? 'error.main' : 'text.secondary', fontWeight: 'bold' }}
                     isEditing={editingCell?.type === 'produto' && editingCell?.id === row.id && editingCell?.field === 'desconto'}
-                    onDoubleClick={() => setEditingCell({ type: 'produto', id: row.id, field: 'desconto' })}
+                    onDoubleClick={() => showValues && setEditingCell({ type: 'produto', id: row.id, field: 'desconto' })}
                     onSave={handleDiscountSave}
                     onCancel={() => setEditingCell(null)}
                 />
@@ -298,7 +300,9 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
                 </TableCell>
 
                 <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                    {precoFinal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    {showValues
+                        ? precoFinal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                        : 'R$ -----'}
                 </TableCell>
 
                 <TableCell align="right">
@@ -498,6 +502,14 @@ export function ProductsPage() {
     const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; productId: number | null }>({ open: false, productId: null });
     const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<{ open: boolean; categoryName: string | null }>({ open: false, categoryName: null });
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' } | null>(null);
+    const [showValues, setShowValues] = useState(() => {
+        const saved = localStorage.getItem('sushihub_showValues');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('sushihub_showValues', JSON.stringify(showValues));
+    }, [showValues]);
 
     // --- ESTADOS PARA NOVO GRUPO ---
     const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
@@ -542,15 +554,35 @@ export function ProductsPage() {
 
     const categories = useMemo(() => {
         if (loading) return [];
-        const productsByCategory = produtos.reduce((acc, product) => {
-            // CORREÇÃO: Ignora categorias vazias para não criar cards fantasmas
-            if (!product.categoria || product.categoria.trim() === '') return acc;
-            if (!acc[product.categoria]) acc[product.categoria] = 0;
-            acc[product.categoria]++;
+        if (!Array.isArray(produtos)) return [];
+
+        // Agora guardamos CONTAGEM e VALOR
+        const statsByCategory = produtos.reduce((acc, product) => {
+            const cat = product.categoria;
+            if (!cat || cat.trim() === '') return acc;
+
+            if (!acc[cat]) {
+                acc[cat] = { count: 0, value: 0 };
+            }
+
+            acc[cat].count++;
+            acc[cat].value += product.preco; // Soma o preço
             return acc;
-        }, {} as Record<string, number>);
-        return Object.entries(productsByCategory).map(([name, count]) => ({ name, count }));
+        }, {} as Record<string, { count: number; value: number }>);
+
+        return Object.entries(statsByCategory).map(([name, data]) => ({
+            name,
+            count: data.count,
+            value: data.value // Retorna o valor somado
+        }));
     }, [produtos, loading]);
+
+    const totalMenuValue = useMemo(() => {
+        // --- PROTEÇÃO: Se produtos não for uma lista, o total é 0 ---
+        if (!Array.isArray(produtos)) return 0;
+
+        return produtos.reduce((acc, curr) => acc + curr.preco, 0);
+    }, [produtos]);
 
     const filteredProducts = useMemo(() => {
         if (searchTerm) {
@@ -561,6 +593,10 @@ export function ProductsPage() {
         }
         return [];
     }, [produtos, selectedCategory, searchTerm]);
+
+    const totalFilteredValue = useMemo(() => {
+        return filteredProducts.reduce((acc, curr) => acc + curr.preco, 0);
+    }, [filteredProducts]);
 
     const handleDelete = (id: number) => setDeleteConfirm({ open: true, productId: id });
 
@@ -682,7 +718,7 @@ export function ProductsPage() {
                         transform: translateY(0px) scale(1);
                     }
                     50% {
-                        transform: translateY(-8px) scale(1.02); /* Sobe e aumenta levemente */
+                        transform: translateY(-4px) scale(1.01);  /* Sobe e aumenta levemente */
                     }
                     100% {
                         transform: translateY(0px) scale(1);
@@ -697,20 +733,45 @@ export function ProductsPage() {
                 `}
             </style>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+
+                {/* --- LADO ESQUERDO (Voltar + Título + Chips) --- */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     {(selectedCategory || searchTerm) && (
                         <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => { setSelectedCategory(null); setSearchTerm(''); }}>
                             Voltar
                         </Button>
                     )}
+
                     <Typography variant="h4" fontWeight="bold">{pageTitle}</Typography>
-                    {!selectedCategory && !searchTerm && (
-                        <Chip icon={<RestaurantIcon />} label={`${produtos.length} produtos`} color="primary" variant="outlined" sx={{ fontWeight: 'bold' }} />
-                    )}
+
+                    {/* CHIPS (Agora dentro do grupo da esquerda para não grudar no olho) */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Chip
+                            icon={<RestaurantIcon />}
+                            label={`${(selectedCategory || searchTerm) ? filteredProducts.length : produtos.length} itens`}
+                            color="primary"
+                            variant="outlined"
+                            sx={{ fontWeight: 'bold' }}
+                        />
+
+                        <Chip
+                            label={showValues
+                                ? ((selectedCategory || searchTerm) ? totalFilteredValue : totalMenuValue)
+                                    .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                                : "R$ -----"}
+                            color="success"
+                            variant="outlined"
+                            sx={{ fontWeight: 'bold', bgcolor: 'rgba(46, 125, 50, 0.05)', borderColor: '#2e7d32' }}
+                        />
+                    </Box>
                 </Box>
 
-                {/* --- BOTÕES SEPARADOS --- */}
-                <Box sx={{ display: 'flex', gap: 2 }}>
+                {/* --- LADO DIREITO (Olho + Botões de Ação) --- */}
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <IconButton onClick={() => setShowValues(!showValues)} sx={{ mr: 1 }}>
+                        {showValues ? <Visibility color="primary" /> : <VisibilityOff color="action" />}
+                    </IconButton>
+
                     <Button
                         variant="outlined"
                         startIcon={<CreateNewFolderIcon />}
@@ -750,11 +811,10 @@ export function ProductsPage() {
                                 p: 2,
                                 cursor: 'pointer',
                                 boxShadow: 3,
-                                // Removemos o 'transition' simples e colocamos a animation no hover
                                 '&:hover': {
-                                    animation: 'floatCard 1.5s infinite ease-in-out', // Chama a animação nova
-                                    boxShadow: 10, // Sombra mais forte para dar profundidade
-                                    zIndex: 2 // Garante que o card fique "acima" dos outros visualmente
+                                    animation: 'floatCard 1.5s infinite ease-in-out',
+                                    boxShadow: 10,
+                                    zIndex: 2
                                 },
                                 display: 'flex',
                                 flexDirection: 'column',
@@ -762,22 +822,38 @@ export function ProductsPage() {
                                 minHeight: '120px'
                             }}
                         >
-                            {/* --- NOVO BOTÃO X --- */}
+                            {/* BOTÃO X */}
                             <IconButton
                                 size="small"
                                 color="error"
                                 sx={{ position: 'absolute', top: 5, right: 5, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.8)' }}
                                 onClick={(e) => {
-                                    e.stopPropagation(); // Impede de abrir a pasta ao clicar no X
+                                    e.stopPropagation();
                                     handleDeleteCategoryClick(category.name);
                                 }}
                             >
                                 <CloseIcon fontSize="small" />
                             </IconButton>
-                            {/* ------------------- */}
 
-                            <Typography variant="h6" sx={{ mt: 2 }}>{category.name}</Typography>
-                            <Typography fontWeight="bold" align="right">{category.count} itens</Typography>
+                            {/* Nome da Categoria */}
+                            <Typography variant="h6" sx={{ mt: 2, fontWeight: 'bold', lineHeight: 1.2 }}>
+                                {category.name}
+                            </Typography>
+
+                            {/* RODAPÉ DO CARD: Valor e Quantidade */}
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mt: 2 }}>
+                                {/* Valor (Respeita o Olhinho) */}
+                                <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 'bold', fontSize: '1rem' }}>
+                                    {showValues
+                                        ? category.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                                        : "R$ -----"}
+                                </Typography>
+
+                                {/* Quantidade */}
+                                <Typography color="text.primary" fontWeight="bold" align="right">
+                                    {category.count} itens
+                                </Typography>
+                            </Box>
                         </Paper>
                     ))}
                 </Box>
@@ -806,6 +882,7 @@ export function ProductsPage() {
                                         onUpdateInsumoGlobal={handleUpdateInsumoGlobal}
                                         onEdit={handleEdit}
                                         onDelete={handleDelete}
+                                        showValues={showValues}
                                     />
                                 ))}
                                 {filteredProducts.length === 0 && (
@@ -819,7 +896,14 @@ export function ProductsPage() {
                 </Paper>
             )}
 
-            <ProductModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveProduct} productToEdit={editingProduct} />
+            <ProductModal
+            open={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSave={handleSaveProduct}
+            productToEdit={editingProduct}
+            existingCategories={categories.map(c => c.name)}
+            />
+
             <ConfirmationDialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, productId: null })} onConfirm={confirmDelete} title="Confirmar Exclusão" message="Tem certeza que deseja excluir este produto?" />
 
             <ConfirmationDialog

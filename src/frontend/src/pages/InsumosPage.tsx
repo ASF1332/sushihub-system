@@ -22,6 +22,7 @@ import {
     CircularProgress
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import RestaurantIcon from '@mui/icons-material/Restaurant';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import WarningIcon from '@mui/icons-material/Warning';
@@ -307,6 +308,14 @@ export function InsumosPage() {
                 </Typography>
 
                 <Chip
+                    icon={<RestaurantIcon />}
+                    label={`${selectedCategory ? filteredInsumos.length : insumos.length} itens`}
+                    color="primary"
+                    variant="outlined"
+                    sx={{ fontWeight: 'bold', mr: 1 }}
+                />
+
+                <Chip
                     icon={<AttachMoneyIcon />}
                     label={showValues
                         ? (selectedCategory
@@ -361,7 +370,11 @@ export function InsumosPage() {
                                         }}
                                     >
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                            <Typography variant="h6" align="left">{categoria.toUpperCase()}</Typography>
+                                            {/* ADICIONADO sx={{ fontWeight: 'bold' }} AQUI EMBAIXO 👇 */}
+                                            <Typography variant="h6" align="left" sx={{ fontWeight: 'bold' }}>
+                                                {categoria.toUpperCase()}
+                                            </Typography>
+
                                             <Typography variant="subtitle2" sx={{ color: 'success.main', fontWeight: 'bold', bgcolor: '#e8f5e9', px: 1, borderRadius: 1 }}>
                                                 {showValues
                                                     ? valorTotalCategoria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })

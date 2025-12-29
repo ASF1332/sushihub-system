@@ -10,8 +10,7 @@ import {
     IconButton,
     Typography,
     Divider,
-    Autocomplete,
-    MenuItem // Importante para o seletor de unidade
+    Autocomplete // O componente mágico que faz o filtro funcionar
 } from '@mui/material';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -36,10 +35,10 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
     const [productData, setProductData] = useState<NewProductData | Produto>(emptyProduct);
     const [insumosList, setInsumosList] = useState<Insumo[]>([]);
 
-    // Estados para a área de adição
+    // Estado temporário para adicionar novo insumo
+    // Guardamos o objeto inteiro do insumo selecionado para facilitar o preenchimento
     const [selectedInsumo, setSelectedInsumo] = useState<Insumo | null>(null);
     const [qtdInsumo, setQtdInsumo] = useState<string>('');
-    const [tempUnit, setTempUnit] = useState<string>(''); // Novo estado para a Unidade
 
     useEffect(() => {
         if (open) {
@@ -54,10 +53,9 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
         if (productToEdit) setProductData(productToEdit);
         else setProductData(emptyProduct);
 
-        // Limpa os campos
+        // Limpa os campos de adição ao abrir/trocar produto
         setSelectedInsumo(null);
         setQtdInsumo('');
-        setTempUnit('');
     }, [productToEdit, open]);
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
@@ -81,10 +79,9 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
             fichaTecnica: [...prev.fichaTecnica, newItem]
         }));
 
-        // Limpa tudo após adicionar
+        // Limpa os campos após adicionar
         setSelectedInsumo(null);
         setQtdInsumo('');
-        setTempUnit('');
     };
 
     const handleRemoveInsumo = (insumoIdToRemove: number) => {
@@ -99,10 +96,7 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-            <DialogTitle>
-                {productToEdit ? 'Editar Produto' : 'Novo Produto'}
-            </DialogTitle>
-
+            <DialogTitle>{productToEdit ? 'Editar Produto' : 'Novo Produto'}</DialogTitle>
             <DialogContent sx={{ pt: '20px !important' }}>
                 <TextField
                     autoFocus
@@ -115,6 +109,9 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
                 />
 
                 <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+
+                    {/* --- CAMPO CATEGORIA (AUTOCOMPLETE) --- */}
+                    {/* Permite digitar livremente ou selecionar da lista */}
                     <Autocomplete
                         freeSolo
                         options={existingCategories}
@@ -127,9 +124,11 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
                             <TextField
                                 {...params}
                                 label="Categoria (ex: Temakis, Combos)"
+                                name="categoria"
+                                // Remove o histórico preto do navegador
                                 inputProps={{
                                     ...params.inputProps,
-                                    autoComplete: 'off',
+                                    autoComplete: 'new-password',
                                 }}
                             />
                         )}
@@ -169,22 +168,17 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
                     </Box>
                 ))}
 
-                {/* --- ÁREA DE ADICIONAR INSUMO (ATUALIZADA) --- */}
+                {/* --- ÁREA DE ADICIONAR INSUMO --- */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 3, p: 2, border: '1px dashed #ccc', borderRadius: 2 }}>
 
+                    {/* --- AQUI ESTÁ A MUDANÇA PRINCIPAL --- */}
+                    {/* Substituímos o Select antigo pelo Autocomplete igual ao da Ficha Técnica */}
                     <Autocomplete
                         options={insumosList}
-                        getOptionLabel={(option) => `${option.nome}`}
+                        getOptionLabel={(option) => `${option.nome} (${option.unidade})`}
                         value={selectedInsumo}
                         onChange={(_event, newValue) => {
                             setSelectedInsumo(newValue);
-                            // Auto-seleciona a unidade quando escolhe o insumo
-                            if (newValue) setTempUnit(newValue.unidade);
-                        }}
-                        componentsProps={{
-                            popper: {
-                                modifiers: [{ name: 'flip', enabled: false }]
-                            }
                         }}
                         fullWidth
                         renderInput={(params) => (
@@ -192,10 +186,6 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
                                 {...params}
                                 label="Selecionar Insumo..."
                                 placeholder="Digite para pesquisar"
-                                inputProps={{
-                                    ...params.inputProps,
-                                    autoComplete: 'off',
-                                }}
                             />
                         )}
                     />
@@ -208,22 +198,6 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
                         value={qtdInsumo}
                         onChange={e => setQtdInsumo(e.target.value)}
                     />
-
-                    {/* --- CAMPO UNIDADE ADICIONADO AQUI --- */}
-                    <TextField
-                        select
-                        label="Unid"
-                        size="small"
-                        sx={{ width: '100px' }}
-                        value={tempUnit}
-                        onChange={(e) => setTempUnit(e.target.value)}
-                    >
-                        {['un', 'kg', 'g', 'L', 'ml'].map((option) => (
-                            <MenuItem key={option} value={option}>
-                                {option}
-                            </MenuItem>
-                        ))}
-                    </TextField>
 
                     <Button
                         variant="contained"
