@@ -1,43 +1,31 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
-export default defineConfig({
-    plugins: [react()],
+export default defineConfig(({ mode }) => {
+    // Carrega as variáveis de ambiente
+    const env = loadEnv(mode, process.cwd(), '');
 
-    define: {
-        'import.meta.env.VITE_API_URL': JSON.stringify('http://localhost:3001')
-    },
+    // Define a URL da API (Vercel ou Local)
+    const apiUrl = env.VITE_API_URL || 'http://localhost:3001';
 
-    server: {
-        port: 5174, // Define a porta padrão para 5174
-        strictPort: true, // Se a porta 5174 estiver ocupada, o Vite vai falhar em vez de tentar outra
-    },
-    // --- CONFIGURAÇÃO DE OTIMIZAÇÃO DE BUILD ---
-    build: {
-        // Aumenta o limite do aviso para 1000kb (1MB) para evitar alertas desnecessários
-        chunkSizeWarningLimit: 1000,
-        rollupOptions: {
-            output: {
-                // Função manual para separar as bibliotecas pesadas
-                manualChunks(id) {
-                    if (id.includes('node_modules')) {
-                        // 1. Separa o Material UI (que é pesado) em um arquivo 'mui.js'
-                        if (id.includes('@mui')) {
-                            return 'mui';
-                        }
-                        // 2. Separa o React e o Router em um arquivo 'react-vendor.js'
-                        if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
-                            return 'react-vendor';
-                        }
-                        // 3. Separa bibliotecas de gráficos (se houver) em 'charts.js'
-                        if (id.includes('recharts') || id.includes('chart.js')) {
-                            return 'charts';
-                        }
-                        // O restante fica no arquivo padrão
-                    }
-                },
-            },
+    return {
+        plugins: [react()],
+
+        // Injeta a URL correta no código
+        define: {
+            'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl)
         },
-    },
+
+        server: {
+            port: 5174,
+            strictPort: true,
+        },
+
+        build: {
+            // Aumenta o limite de aviso de tamanho (para não ficar apitando alerta)
+            chunkSizeWarningLimit: 1600,
+            // REMOVI O 'manualChunks' QUE ESTAVA QUEBRANDO O SITE
+        },
+    }
 })
