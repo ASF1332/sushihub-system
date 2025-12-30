@@ -518,7 +518,7 @@ export function ProductsPage() {
     useEffect(() => {
         setLoading(true);
         Promise.all([
-            fetch(`${import.meta.env.VITE_API_URL}/api/produtos`).then(res => res.json()),
+            fetch(`http://localhost:3001/api/produtos`).then(res => res.json()),
             fetch(`${import.meta.env.VITE_API_URL}/api/insumos`).then(res => res.json())
         ])
             .then(([produtosData, insumosData]) => {
