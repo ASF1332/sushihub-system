@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 
 const app = express();
 const prisma = new PrismaClient();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
@@ -328,6 +328,6 @@ app.delete('/api/clientes/:id', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`✅ Servidor Backend rodando com Banco de Dados na porta ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => { // Adicionei '0.0.0.0' para aceitar conexões externas
+    console.log(`✅ Servidor Backend rodando na porta ${PORT}`);
 });
