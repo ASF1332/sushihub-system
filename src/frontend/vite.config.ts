@@ -2,23 +2,25 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
-    // Carrega variáveis do arquivo .env (se existir)
+    // Carrega variáveis do arquivo .env (usado no seu PC)
     const env = loadEnv(mode, process.cwd(), '');
 
-    // Tenta pegar a URL de 3 lugares diferentes (nessa ordem):
-    // 1. Do sistema da Vercel (process.env)
-    // 2. Do arquivo .env carregado (env)
-    // 3. Se não achar nada, usa localhost (Fallback)
-    const apiUrl = process.env.VITE_API_URL || env.VITE_API_URL || 'http://localhost:3001';
+    // LÓGICA NOVA E MAIS SEGURA:
+    // 1. Tenta pegar do arquivo .env (No seu PC, vai pegar localhost:3001)
+    // 2. Tenta pegar do sistema da Vercel
+    // 3. Se não achar NADA, usa o link do Render (Segurança para não dar erro no celular)
 
-    // --- LOG PARA DEBUG NA VERCEL ---
+    const apiUrl = env.VITE_API_URL || process.env.VITE_API_URL || 'https://sushihub-system.onrender.com';
+
     console.log("===========================================");
-    console.log("🚀 BUILD VITE - DEFININDO URL DA API");
-    console.log("👉 URL FINAL ESCOLHIDA:", apiUrl);
+    console.log("🚀 BUILD VITE - URL DEFINIDA:", apiUrl);
     console.log("===========================================");
 
     return {
         plugins: [react()],
+
+        // Ensina o Vite a buscar o .env na raiz do projeto
+        envDir: '../../',
 
         define: {
             'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl)
