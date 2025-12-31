@@ -705,19 +705,11 @@ export function ProductsPage() {
 
     if (loading) return <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>;
     if (error) return <Typography color="error" sx={{ p: 3 }}>{error}</Typography>;
-    );
 
     const pageTitle = searchTerm ? `Resultados para "${searchTerm}"` : (selectedCategory || 'Cardápio Digital');
 
     return (
         <Box sx={{ p: 3, flexGrow: 1 }}>
-
-            {/* --- INICIO DO CÓDIGO DE DEBUG (COLE ISSO AQUI) --- */}
-            <Box sx={{ p: 2, bgcolor: '#fff3cd', color: '#856404', mb: 2, borderRadius: 1, border: '1px solid #ffeeba' }}>
-                <Typography variant="body1" fontWeight="bold">
-                    DEBUG URL: {import.meta.env.VITE_API_URL}
-                </Typography>
-            </Box>
 
             {/* --- AQUI ESTÃO AS ANIMAÇÕES CORRIGIDAS --- */}
             <style>
