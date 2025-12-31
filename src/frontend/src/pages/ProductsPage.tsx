@@ -706,7 +706,7 @@ export function ProductsPage() {
     if (loading) return <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>;
     if (error) return <Typography color="error" sx={{ p: 3 }}>{error}</Typography>;
 
-    const pageTitle = searchTerm ? `Resultados para "${searchTerm}"` : (selectedCategory || 'Categorias de Produtos');
+    const pageTitle = searchTerm ? `Resultados para "${searchTerm}"` : (selectedCategory || 'Cardápio Digital (Teste)');
 
     return (
         <Box sx={{ p: 3, flexGrow: 1 }}>
