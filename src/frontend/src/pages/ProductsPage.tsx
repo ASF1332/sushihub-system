@@ -704,25 +704,10 @@ export function ProductsPage() {
     };
 
     if (loading) return <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>;
-    if (error) return (
-        <Box sx={{ p: 3 }}>
-            <Typography variant="h5" color="error" fontWeight="bold">
-                {error}
-            </Typography>
-
-            {/* AQUI VAMOS VER A VERDADE */}
-            <Box sx={{ mt: 2, p: 2, bgcolor: '#eee', borderRadius: 1, border: '1px solid #ccc' }}>
-                <Typography variant="body1">
-                    <strong>O site está tentando acessar:</strong>
-                </Typography>
-                <Typography variant="code" sx={{ fontFamily: 'monospace', color: 'blue' }}>
-                    {import.meta.env.VITE_API_URL}
-                </Typography>
-            </Box>
-        </Box>
+    if (error) return <Typography color="error" sx={{ p: 3 }}>{error}</Typography>;
     );
 
-    const pageTitle = searchTerm ? `Resultados para "${searchTerm}"` : (selectedCategory || 'Cardápio Digital (Teste)');
+    const pageTitle = searchTerm ? `Resultados para "${searchTerm}"` : (selectedCategory || 'Cardápio Digital');
 
     return (
         <Box sx={{ p: 3, flexGrow: 1 }}>
