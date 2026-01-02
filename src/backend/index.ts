@@ -132,6 +132,52 @@ app.put('/api/insumos/:id', async (req, res) => {
     }
 });
 
+app.delete('/api/insumos/categoria/:nomeCategoria', async (req, res) => {
+    const { nomeCategoria } = req.params;
+
+    try {
+        // A mágica acontece aqui: $transaction
+        const resultado = await prisma.$transaction(async (tx) => {
+            // 1. Encontrar todos os insumos da categoria que queremos deletar
+            console.log(`Buscando insumos para deletar na categoria: ${nomeCategoria}`);
+            const insumosParaDeletar = await tx.insumo.findMany({
+                where: { categoria: nomeCategoria },
+                select: { id: true }
+            });
+
+            // Se não houver insumos, não há nada a fazer
+            if (insumosParaDeletar.length === 0) {
+                console.log("Nenhum insumo encontrado nesta categoria.");
+                return { count: 0 };
+            }
+
+            const idsParaDeletar = insumosParaDeletar.map(i => i.id);
+            console.log(`IDs a serem deletados: ${idsParaDeletar.join(', ')}`);
+
+            // 2. Deletar todas as referências desses insumos na FichaTecnica
+            console.log("Deletando referências da Ficha Técnica...");
+            await tx.fichaTecnica.deleteMany({
+                where: { insumoId: { in: idsParaDeletar } }
+            });
+
+            // 3. Finalmente, deletar os próprios insumos
+            console.log("Deletando os insumos da categoria...");
+            const deleteResult = await tx.insumo.deleteMany({
+                where: { categoria: nomeCategoria }
+            });
+
+            return deleteResult;
+        });
+
+        res.json({ message: `${resultado.count} insumos da categoria '${nomeCategoria}' foram deletados com sucesso.` });
+
+    } catch (error) {
+        // Se qualquer um dos passos dentro da transação falhar, ele cairá aqui
+        console.error("ERRO NA TRANSAÇÃO AO DELETAR CATEGORIA DE INSUMO:", error);
+        res.status(500).json({ error: 'Erro ao deletar insumos por categoria. Verifique o log do servidor.' });
+    }
+});
+
 app.delete('/api/insumos/:id', async (req, res) => {
     const { id } = req.params;
     try {

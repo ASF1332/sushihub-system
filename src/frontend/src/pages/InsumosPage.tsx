@@ -34,6 +34,7 @@ import WarningIcon from '@mui/icons-material/Warning';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import CloseIcon from '@mui/icons-material/Close';
 import { InsumoModal } from '../components/InsumoModal';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 
@@ -168,6 +169,7 @@ export function InsumosPage() {
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'warning' } | null>(null);
     const [highlightedInsumoId, setHighlightedInsumoId] = useState<number | null>(null);
     const [editingCell, setEditingCell] = useState<{ id: number, field: string } | null>(null);
+    const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<{ open: boolean; categoryName: string | null }>({ open: false, categoryName: null });
 
     // --- ESTADOS PARA NOVO GRUPO ---
     const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
@@ -378,6 +380,42 @@ export function InsumosPage() {
         }
     };
 
+    const handleDeleteCategoryClick = (categoryName: string) => {
+        setDeleteCategoryConfirm({ open: true, categoryName });
+    };
+
+// LÓGICA CORRETA - IGUAL À DA PÁGINA DE PRODUTOS
+    const confirmDeleteCategory = async () => {
+        const categoryName = deleteCategoryConfirm.categoryName;
+        if (!categoryName) return;
+
+        // 1. Filtra todos os insumos que pertencem à categoria a ser deletada
+        const insumosToDelete = insumos.filter(i => i.categoria === categoryName);
+
+        try {
+            // 2. Cria uma promessa para cada exclusão individual
+            await Promise.all(
+                insumosToDelete.map(insumo =>
+                    fetch(`${import.meta.env.VITE_API_URL}/api/insumos/${insumo.id}`, {
+                        method: 'DELETE'
+                    })
+                )
+            );
+
+            // 3. Se todas as exclusões deram certo, atualiza o estado local de uma vez
+            setInsumos(prev => prev.filter(i => i.categoria !== categoryName));
+            setSnackbar({ open: true, message: `Grupo "${categoryName}" e todos os seus insumos foram excluídos!`, severity: 'success' });
+
+        } catch (error) {
+            console.error("Erro ao deletar um dos insumos da categoria:", error);
+            setSnackbar({ open: true, message: 'Erro ao excluir o grupo. Tente novamente.', severity: 'error' });
+            // Opcional: Chamar fetchInsumos() aqui para garantir que a tela reflita o estado real do banco
+            fetchInsumos();
+        } finally {
+            setDeleteCategoryConfirm({ open: false, categoryName: null });
+        }
+    };
+
     return (
         <Box sx={{ p: 3, maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <style>
@@ -403,7 +441,7 @@ export function InsumosPage() {
                     </Button>
                 )}
 
-                <Typography variant="h4" component="h1" sx={{ flexGrow: 0, mr: 2 }}>
+                <Typography variant="h4" component="h1" sx={{ flexGrow: 0, mr: 2, fontWeight: 'bold' }}>
                     {selectedCategory ? selectedCategory : 'Gestão de Insumos'}
                 </Typography>
 
@@ -485,12 +523,26 @@ export function InsumosPage() {
                                             display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px'
                                         }}
                                     >
+                                        {/* --- BOTÃO X ADICIONADO AQUI --- */}
+                                        <IconButton
+                                            size="small"
+                                            color="error"
+                                            sx={{ position: 'absolute', top: 5, right: 5, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.8)' }}
+                                            onClick={(e) => {
+                                                e.stopPropagation(); // Impede que o clique no X também abra a categoria
+                                                handleDeleteCategoryClick(categoria);
+                                            }}
+                                        >
+                                            <CloseIcon fontSize="small" />
+                                        </IconButton>
+
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                            <Typography variant="h6" align="left" sx={{ fontWeight: 'bold' }}>
+                                            <Typography variant="h6" align="left" sx={{ fontWeight: 'bold', mt: 2 }}>
                                                 {categoria.toUpperCase()}
                                             </Typography>
 
-                                            <Typography variant="subtitle2" sx={{ color: 'success.main', fontWeight: 'bold', bgcolor: '#e8f5e9', px: 1, borderRadius: 1 }}>
+                                            {/* Adicionamos uma margem à direita (mr: 4) para criar espaço para o botão 'X' */}
+                                            <Typography variant="subtitle2" sx={{ color: 'success.main', fontWeight: 'bold', bgcolor: '#e8f5e9', px: 1, borderRadius: 1, mr: 4 }}>
                                                 {showValues
                                                     ? valorTotalCategoria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                                                     : "R$ -----"}
@@ -700,6 +752,15 @@ export function InsumosPage() {
                 existingCategories={Object.keys(insumosPorCategoria)}
             />
             <ConfirmationDialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, insumoId: null })} onConfirm={confirmDelete} title="Confirmar Exclusão" message="Tem certeza que deseja excluir este insumo?" />
+
+            <ConfirmationDialog
+                open={deleteCategoryConfirm.open}
+                onClose={() => setDeleteCategoryConfirm({ open: false, categoryName: null })}
+                onConfirm={confirmDeleteCategory}
+                title="Excluir Grupo Inteiro?"
+                message={`ATENÇÃO: Isso excluirá o grupo "${deleteCategoryConfirm.categoryName}" e TODOS os insumos dentro dele. Esta ação não pode ser desfeita.`}
+            />
+
             {snackbar && (<Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}><Alert onClose={() => setSnackbar(null)} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert></Snackbar>)}
 
             {/* --- DIALOG PARA CRIAR NOVO GRUPO --- */}
