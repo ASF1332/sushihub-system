@@ -81,9 +81,9 @@ const EditableCell = ({
                     cursor: 'pointer',
                     userSelect: 'none',
                     height: '40px',
-                    // Aqui aplicamos a animação de pulsar o fundo
+                    // Agora usa a animação vermelha
                     '&:hover': {
-                        animation: 'pulseCell 1.5s infinite ease-in-out'
+                        animation: 'pulseCellRed 1.5s infinite ease-in-out'
                     },
                     ...sx
                 }}
@@ -252,10 +252,10 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
                     50% { transform: translateY(-6px); }
                     100% { transform: translateY(0px); }
                 }
-                @keyframes pulseCell {
-                    0% { background-color: rgba(0, 0, 0, 0.02); }
-                    50% { background-color: rgba(0, 0, 0, 0.12); } 
-                    100% { background-color: rgba(0, 0, 0, 0.02); }
+                @keyframes pulseCellRed {
+    0% { background-color: rgba(211, 47, 47, 0.0); } 
+    50% { background-color: rgba(211, 47, 47, 0.08); } 
+    100% { background-color: rgba(211, 47, 47, 0.0); }
                 }
                 `}
         </style>
@@ -657,18 +657,34 @@ export function ProductsPage() {
     };
 
     const handleConfirmNewGroup = () => {
-        if (!newGroupName.trim()) {
+        const nomeLimpo = newGroupName.trim();
+
+        if (!nomeLimpo) {
             setSnackbar({ open: true, message: 'Digite um nome para o grupo.', severity: 'error' });
             return;
         }
+
+        // --- NOVA VALIDAÇÃO: Verifica se o grupo já existe ---
+        // categories é um array de objetos { name, count, value }, então mapeamos para pegar só o nome
+        const categoriasExistentes = categories.map(c => c.name.toLowerCase());
+
+        if (categoriasExistentes.includes(nomeLimpo.toLowerCase())) {
+            setSnackbar({
+                open: true,
+                message: `O grupo "${nomeLimpo}" já existe!`,
+                severity: 'warning'
+            });
+            return;
+        }
+        // ----------------------------------------------------
+
         setIsGroupDialogOpen(false);
-        // Truque: Cria um "Produto Modelo" com ID 0, mas com a categoria preenchida
-        // O Modal vai abrir e o usuário só precisa preencher o nome e preço do primeiro item
+        // Truque: Cria um "Produto Modelo" com ID 0
         setEditingProduct({
             id: 0,
             nome: '',
             preco: 0,
-            categoria: newGroupName,
+            categoria: nomeLimpo,
             fichaTecnica: []
         });
         setIsModalOpen(true);
@@ -693,14 +709,26 @@ export function ProductsPage() {
         }
 
         fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyData) })
-            .then(res => res.json())
+            .then(async res => {
+                // --- MUDANÇA AQUI: Verifica se deu erro no backend (ex: duplicado) ---
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || 'Erro ao salvar produto');
+                }
+                return res.json();
+            })
             .then(savedProduct => {
                 if (isEditing) setProdutos(prev => prev.map(p => p.id === savedProduct.id ? savedProduct : p));
                 else setProdutos(prev => [...prev, savedProduct]);
+
                 if (isModalOpen) setIsModalOpen(false);
                 setSnackbar({ open: true, message: 'Produto salvo com sucesso!', severity: 'success' });
             })
-            .catch(() => setSnackbar({ open: true, message: 'Erro ao salvar.', severity: 'error' }));
+            .catch((err) => {
+                console.error(err);
+                // Mostra a mensagem específica do backend (ex: "Produto já existe")
+                setSnackbar({ open: true, message: err.message, severity: 'error' });
+            });
     };
 
     if (loading) return <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>;
@@ -727,9 +755,9 @@ export function ProductsPage() {
                 }
                 
                 @keyframes pulseCell {
-                    0% { background-color: rgba(0, 0, 0, 0.02); }
-                    50% { background-color: rgba(0, 0, 0, 0.12); } 
-                    100% { background-color: rgba(0, 0, 0, 0.02); }
+                       0% { background-color: rgba(211, 47, 47, 0.0); } 
+                        50% { background-color: rgba(211, 47, 47, 0.08); } 
+                        100% { background-color: rgba(211, 47, 47, 0.0); }
                 }
                 `}
             </style>
@@ -812,9 +840,12 @@ export function ProductsPage() {
                                 p: 2,
                                 cursor: 'pointer',
                                 boxShadow: 3,
+                                border: '1px solid #e0e0e0',
                                 '&:hover': {
                                     animation: 'floatCard 1.5s infinite ease-in-out',
-                                    boxShadow: 10,
+                                    boxShadow: '0 8px 24px rgba(211, 47, 47, 0.25)',
+                                    // --- ADICIONADO: Borda Vermelha no Hover ---
+                                    borderColor: '#d32f2f',
                                     zIndex: 2
                                 },
                                 display: 'flex',

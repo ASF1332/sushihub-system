@@ -6,78 +6,105 @@ import {
     DialogActions,
     TextField,
     Button,
-    Select,
-    MenuItem,
-    InputLabel,
-    FormControl,
-    Box
+    Box,
+    Autocomplete, // Importante para o campo inteligente
+    MenuItem
 } from '@mui/material';
 
-// Exportamos as interfaces para poder usar na Página também se precisar
-export interface Insumo {
+interface Insumo {
     id: number;
     nome: string;
     categoria: string;
-    unidade?: string; // Removi a restrição estrita para evitar erros se o banco tiver algo diferente
-    estoque?: number;
-    estoqueMinimo?: number;
+    unidade: string;
+    estoque: number;
+    estoqueMinimo: number;
+    preco: number;
 }
-export type InsumoData = Omit<Insumo, 'id'>;
 
 interface InsumoModalProps {
     open: boolean;
     onClose: () => void;
-    onSave: (insumo: InsumoData | Insumo) => void;
+    onSave: (insumo: Omit<Insumo, 'id'> | Insumo) => void;
     insumoToEdit?: Insumo | null;
+    existingCategories?: string[]; // Recebe a lista de categorias
 }
 
-const emptyInsumo: InsumoData = {
+const emptyInsumo = {
     nome: '',
+    categoria: '',
+    unidade: 'un',
     estoque: 0,
     estoqueMinimo: 5,
-    unidade: 'un',
-    categoria: 'Cozinha'
+    preco: 0
 };
 
-export function InsumoModal({ open, onClose, onSave, insumoToEdit }: InsumoModalProps) {
-    const [insumoData, setInsumoData] = useState<InsumoData | Insumo>(emptyInsumo);
+export function InsumoModal({ open, onClose, onSave, insumoToEdit, existingCategories = [] }: InsumoModalProps) {
+    const [formData, setFormData] = useState<any>(emptyInsumo);
 
     useEffect(() => {
-        if (insumoToEdit) {
-            setInsumoData(insumoToEdit);
-        } else {
-            setInsumoData(emptyInsumo);
+        if (open) {
+            if (insumoToEdit) {
+                // Se vier um insumo para editar (ou criar grupo com ID 0)
+                setFormData(insumoToEdit);
+            } else {
+                // Se for novo do zero
+                setFormData(emptyInsumo);
+            }
         }
-    }, [insumoToEdit, open]);
+    }, [open, insumoToEdit]);
 
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
-        const { name, value } = event.target;
-
-        setInsumoData(prev => ({
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData((prev: any) => ({
             ...prev,
-            // AQUI ESTÁ O PULO DO GATO: Se for campo numérico, converte para Number
-            [name as string]: (name === 'estoque' || name === 'estoqueMinimo')
-                ? Number(value)
-                : value
+            [name]: name === 'estoque' || name === 'estoqueMinimo' || name === 'preco' ? Number(value) : value
         }));
     };
 
-    const handleSaveClick = () => {
-        onSave(insumoData);
+    const handleSubmit = () => {
+        onSave(formData);
     };
+
+    // Lógica para decidir o Título:
+    // Se tem ID e o ID é diferente de 0, é Edição.
+    // Se não tem ID ou o ID é 0, é Novo.
+    const isEditing = formData.id && formData.id !== 0;
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>{insumoToEdit ? 'Editar Insumo' : 'Novo Insumo'}</DialogTitle>
+            <DialogTitle>{isEditing ? 'Editar Insumo' : 'Novo Insumo'}</DialogTitle>
             <DialogContent sx={{ pt: '20px !important' }}>
+
                 <TextField
                     autoFocus
+                    margin="dense"
                     name="nome"
                     label="Nome do Insumo"
                     fullWidth
-                    value={insumoData.nome}
+                    variant="outlined"
+                    value={formData.nome}
                     onChange={handleChange}
                     sx={{ mb: 2 }}
+                />
+
+                {/* CAMPO CATEGORIA INTELIGENTE (AUTOCOMPLETE) */}
+                <Autocomplete
+                    freeSolo
+                    options={existingCategories}
+                    value={formData.categoria}
+                    onInputChange={(_event, newValue) => {
+                        setFormData((prev: any) => ({ ...prev, categoria: newValue }));
+                    }}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="Categoria"
+                            margin="dense"
+                            variant="outlined"
+                            fullWidth
+                            sx={{ mb: 2 }}
+                        />
+                    )}
                 />
 
                 <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
@@ -86,7 +113,7 @@ export function InsumoModal({ open, onClose, onSave, insumoToEdit }: InsumoModal
                         label="Estoque Atual"
                         type="number"
                         fullWidth
-                        value={insumoData.estoque}
+                        value={formData.estoque}
                         onChange={handleChange}
                     />
                     <TextField
@@ -94,49 +121,44 @@ export function InsumoModal({ open, onClose, onSave, insumoToEdit }: InsumoModal
                         label="Estoque Mínimo"
                         type="number"
                         fullWidth
-                        value={insumoData.estoqueMinimo}
+                        value={formData.estoqueMinimo}
                         onChange={handleChange}
                         helperText="Alerta quando baixar disso"
                     />
                 </Box>
 
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                    <InputLabel>Unidade</InputLabel>
-                    <Select
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                        select
                         name="unidade"
-                        value={insumoData.unidade || 'un'}
-                        onChange={handleChange}
                         label="Unidade"
-                    >
-                        <MenuItem value="un">Unidade (un)</MenuItem>
-                        <MenuItem value="kg">Quilogramas (kg)</MenuItem>
-                        <MenuItem value="g">Gramas (g)</MenuItem>
-                        <MenuItem value="L">Litros (L)</MenuItem>
-                        <MenuItem value="ml">Mililitros (ml)</MenuItem>
-                    </Select>
-                </FormControl>
-
-                <FormControl fullWidth>
-                    <InputLabel>Categoria</InputLabel>
-                    <Select
-                        name="categoria"
-                        value={insumoData.categoria || 'Cozinha'}
+                        fullWidth
+                        value={formData.unidade}
                         onChange={handleChange}
-                        label="Categoria"
                     >
-                        <MenuItem value="Cozinha">Cozinha</MenuItem>
-                        <MenuItem value="Embalagens">Embalagens</MenuItem>
-                        <MenuItem value="Insumos">Insumos (Geral)</MenuItem>
-                        <MenuItem value="Hortifruti">Hortifruti</MenuItem>
-                        <MenuItem value="Bebidas">Bebidas</MenuItem>
-                        <MenuItem value="Peixes">Peixes</MenuItem>
-                        <MenuItem value="Grãos">Grãos</MenuItem>
-                    </Select>
-                </FormControl>
+                        {['un', 'kg', 'g', 'L', 'ml'].map((option) => (
+                            <MenuItem key={option} value={option}>
+                                {option}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+
+                    <TextField
+                        name="preco"
+                        label="Preço de Custo (R$)"
+                        type="number"
+                        fullWidth
+                        value={formData.preco}
+                        onChange={handleChange}
+                    />
+                </Box>
+
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Cancelar</Button>
-                <Button onClick={handleSaveClick} variant="contained">Salvar</Button>
+                <Button onClick={handleSubmit} variant="contained" color="primary">
+                    Salvar
+                </Button>
             </DialogActions>
         </Dialog>
     );

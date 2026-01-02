@@ -19,9 +19,14 @@ import {
     TextField,
     MenuItem,
     Select,
-    CircularProgress
+    CircularProgress,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -88,7 +93,9 @@ const EditableCell = ({
                     userSelect: 'none',
                     height: '56px',
                     boxSizing: 'border-box',
-                    '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
+                    '&:hover': {
+                        animation: 'pulseCellRed 1.5s infinite ease-in-out'
+                    },
                     ...sx
                 }}
             >
@@ -158,9 +165,13 @@ export function InsumosPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInsumo, setEditingInsumo] = useState<Insumo | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; insumoId: number | null }>({ open: false, insumoId: null });
-    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' } | null>(null);
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'warning' } | null>(null);
     const [highlightedInsumoId, setHighlightedInsumoId] = useState<number | null>(null);
     const [editingCell, setEditingCell] = useState<{ id: number, field: string } | null>(null);
+
+    // --- ESTADOS PARA NOVO GRUPO ---
+    const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+    const [newGroupName, setNewGroupName] = useState('');
 
     // --- BUSCA DADOS ---
     const fetchInsumos = () => {
@@ -175,7 +186,6 @@ export function InsumosPage() {
                     setInsumos(data);
                     setError(null);
                 } else {
-                    console.error("API retornou dados inválidos:", data);
                     setInsumos([]);
                     setError("Erro: Servidor retornou dados inválidos.");
                 }
@@ -202,13 +212,6 @@ export function InsumosPage() {
     }, [highlightedInsumoId, selectedCategory]);
 
     // --- CÁLCULOS ---
-    const valorTotalGeral = useMemo(() => {
-        if (!Array.isArray(insumos)) return 0;
-        return insumos.reduce((acc, item) => {
-            return acc + ((item.preco || 0) * (item.estoque || 0));
-        }, 0);
-    }, [insumos]);
-
     const insumosPorCategoria = useMemo(() => {
         if (!Array.isArray(insumos)) return {};
         return insumos.reduce((acc, insumo) => {
@@ -222,14 +225,15 @@ export function InsumosPage() {
         return insumos.filter(i => i.categoria === selectedCategory);
     }, [insumos, selectedCategory]);
 
+    const valorTotalGeral = useMemo(() => {
+        return insumos.reduce((acc, item) => acc + ((item.preco || 0) * (item.estoque || 0)), 0);
+    }, [insumos]);
+
     const valorTotalCategoriaAtual = useMemo(() => {
-        return filteredInsumos.reduce((acc, item) => {
-            return acc + ((item.preco || 0) * (item.estoque || 0));
-        }, 0);
+        return filteredInsumos.reduce((acc, item) => acc + ((item.preco || 0) * (item.estoque || 0)), 0);
     }, [filteredInsumos]);
 
     const itensEmAlerta = useMemo(() => {
-        if (!Array.isArray(insumos)) return [];
         return insumos.filter(i => (i.estoque || 0) < (i.estoqueMinimo || 5));
     }, [insumos]);
 
@@ -243,6 +247,87 @@ export function InsumosPage() {
     const handleNavigateToItem = (categoria: string, id: number) => {
         setSelectedCategory(categoria);
         setHighlightedInsumoId(id);
+    };
+
+    // --- LÓGICA DO NOVO GRUPO (CORRIGIDA) ---
+    const handleNewGroupClick = () => {
+        setNewGroupName('');
+        setIsGroupDialogOpen(true);
+    };
+
+    const handleConfirmNewGroup = () => {
+        const nomeLimpo = newGroupName.trim();
+
+        if (!nomeLimpo) {
+            setSnackbar({ open: true, message: 'Digite um nome para o grupo.', severity: 'error' });
+            return;
+        }
+
+        // Verifica se o grupo já existe
+        const categoriasExistentes = Object.keys(insumosPorCategoria).map(c => c.toLowerCase());
+        if (categoriasExistentes.includes(nomeLimpo.toLowerCase())) {
+            setSnackbar({
+                open: true,
+                message: `O grupo "${nomeLimpo}" já existe!`,
+                severity: 'warning'
+            });
+            return;
+        }
+
+        setIsGroupDialogOpen(false);
+
+        // Abre o modal de Insumo forçando a categoria nova
+        // O usuário PRECISA salvar este insumo para o grupo ser criado de fato
+        setEditingInsumo({
+            id: 0,
+            nome: '',
+            categoria: nomeLimpo,
+            unidade: 'un',
+            estoque: 0,
+            estoqueMinimo: 5,
+            preco: 0
+        });
+        setIsModalOpen(true);
+    };
+
+    // --- SALVAR INSUMO (CORRIGIDO PARA EVITAR DUPLICIDADE VISUAL) ---
+    const handleSaveModal = (data: InsumoData | Insumo) => {
+        const isEditing = 'id' in data && (data as Insumo).id !== 0;
+        const url = isEditing
+            ? `${import.meta.env.VITE_API_URL}/api/insumos/${(data as Insumo).id}`
+            : `${import.meta.env.VITE_API_URL}/api/insumos`;
+        const method = isEditing ? 'PUT' : 'POST';
+
+        const bodyData = { ...data };
+        if (!isEditing && 'id' in bodyData) {
+            // @ts-ignore
+            delete bodyData.id;
+        }
+
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyData)
+        })
+            .then(async res => {
+                // SE O BACKEND RETORNAR ERRO (ex: 400 Duplicado), CAI AQUI
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || 'Erro na requisição');
+                }
+                return res.json();
+            })
+            .then(saved => {
+                // SÓ ATUALIZA A TELA SE DEU TUDO CERTO
+                setInsumos(prev => isEditing ? prev.map(i => i.id === saved.id ? saved : i) : [...prev, saved]);
+                setIsModalOpen(false);
+                setSnackbar({ open: true, message: 'Salvo com sucesso!', severity: 'success' });
+            })
+            .catch(err => {
+                console.error(err);
+                // EXIBE O ERRO DO BACKEND (ex: "Já existe um insumo...")
+                setSnackbar({ open: true, message: err.message, severity: 'error' });
+            });
     };
 
     const handleCellSave = (id: number, field: string, value: any) => {
@@ -261,11 +346,24 @@ export function InsumosPage() {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(insumoAtualizado)
-        }).then(res => res.json()).then(saved => {
-            setInsumos(prev => prev.map(i => i.id === saved.id ? saved : i));
-            setEditingCell(null);
-            setSnackbar({ open: true, message: 'Atualizado!', severity: 'success' });
-        });
+        })
+            .then(async res => {
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || 'Erro ao atualizar');
+                }
+                return res.json();
+            })
+            .then(saved => {
+                setInsumos(prev => prev.map(i => i.id === saved.id ? saved : i));
+                setEditingCell(null);
+                setSnackbar({ open: true, message: 'Atualizado!', severity: 'success' });
+            })
+            .catch(err => {
+                setSnackbar({ open: true, message: err.message, severity: 'error' });
+                // Reverte o valor visualmente se der erro
+                setEditingCell(null);
+            });
     };
 
     const confirmDelete = () => {
@@ -280,21 +378,23 @@ export function InsumosPage() {
         }
     };
 
-    const handleSaveModal = (data: InsumoData | Insumo) => {
-        const isEditing = 'id' in data;
-        fetch(`${import.meta.env.VITE_API_URL}/api/insumos${isEditing ? `/${data.id}` : ''}`, {
-            method: isEditing ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).then(res => res.json()).then(saved => {
-            setInsumos(prev => isEditing ? prev.map(i => i.id === saved.id ? saved : i) : [...prev, saved]);
-            setIsModalOpen(false);
-            setSnackbar({ open: true, message: 'Salvo com sucesso!', severity: 'success' });
-        });
-    };
-
     return (
         <Box sx={{ p: 3, maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+            <style>
+                {`
+                @keyframes floatCard {
+                    0% { transform: translateY(0px) scale(1); }
+                    50% { transform: translateY(-4px) scale(1.01); }
+                    100% { transform: translateY(0px) scale(1); }
+                }
+                @keyframes pulseCellRed {
+                    0% { background-color: rgba(211, 47, 47, 0.0); } 
+                    50% { background-color: rgba(211, 47, 47, 0.08); } 
+                    100% { background-color: rgba(211, 47, 47, 0.0); }
+                }
+                `}
+            </style>
+
             {/* CABEÇALHO */}
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2, flexWrap: 'wrap' }}>
                 {selectedCategory && (
@@ -332,6 +432,15 @@ export function InsumosPage() {
                     {showValues ? <Visibility color="primary" /> : <VisibilityOff color="action" />}
                 </IconButton>
 
+                <Button
+                    variant="outlined"
+                    startIcon={<CreateNewFolderIcon />}
+                    onClick={handleNewGroupClick}
+                    sx={{ ml: 2 }}
+                >
+                    Novo Grupo
+                </Button>
+
                 <Button variant="contained" color="primary" onClick={handleNew} sx={{ ml: 2 }}>
                     Novo Insumo
                 </Button>
@@ -362,15 +471,21 @@ export function InsumosPage() {
                                         elevation={3}
                                         onClick={() => setSelectedCategory(categoria)}
                                         sx={{
+                                            position: 'relative',
                                             p: 2,
                                             cursor: 'pointer',
-                                            transition: 'transform 0.2s',
-                                            '&:hover': { transform: 'translateY(-5px)', boxShadow: 6 },
+                                            boxShadow: 3,
+                                            border: '1px solid #e0e0e0',
+                                            '&:hover': {
+                                                animation: 'floatCard 1.5s infinite ease-in-out',
+                                                boxShadow: '0 8px 24px rgba(211, 47, 47, 0.25)',
+                                                borderColor: '#d32f2f',
+                                                zIndex: 2
+                                            },
                                             display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px'
                                         }}
                                     >
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                            {/* ADICIONADO sx={{ fontWeight: 'bold' }} AQUI EMBAIXO 👇 */}
                                             <Typography variant="h6" align="left" sx={{ fontWeight: 'bold' }}>
                                                 {categoria.toUpperCase()}
                                             </Typography>
@@ -577,9 +692,40 @@ export function InsumosPage() {
                 </Paper>
             ) : null}
 
-            <InsumoModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveModal} insumoToEdit={editingInsumo} />
+            <InsumoModal
+                open={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSave={handleSaveModal}
+                insumoToEdit={editingInsumo}
+                existingCategories={Object.keys(insumosPorCategoria)}
+            />
             <ConfirmationDialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, insumoId: null })} onConfirm={confirmDelete} title="Confirmar Exclusão" message="Tem certeza que deseja excluir este insumo?" />
             {snackbar && (<Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}><Alert onClose={() => setSnackbar(null)} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert></Snackbar>)}
+
+            {/* --- DIALOG PARA CRIAR NOVO GRUPO --- */}
+            <Dialog open={isGroupDialogOpen} onClose={() => setIsGroupDialogOpen(false)}>
+                <DialogTitle>Criar Novo Grupo de Insumos</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                        Digite o nome do novo grupo (ex: Hortifruti, Embalagens).
+                        Em seguida, cadastre o primeiro insumo deste grupo.
+                    </Typography>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Nome do Grupo"
+                        fullWidth
+                        variant="outlined"
+                        value={newGroupName}
+                        onChange={(e) => setNewGroupName(e.target.value)}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setIsGroupDialogOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleConfirmNewGroup} variant="contained">Criar e Adicionar Insumo</Button>
+                </DialogActions>
+            </Dialog>
+
         </Box>
     );
 }

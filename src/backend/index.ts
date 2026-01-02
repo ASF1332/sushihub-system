@@ -1,3 +1,5 @@
+console.log("🔥🔥🔥 ESTOU RODANDO O CÓDIGO NOVO! SE NÃO APARECER ISSO, ESTÁ ERRADO! 🔥🔥🔥");
+console.log("DATABASE URL USADA:", process.env.DATABASE_URL); // Vamos conferir se está no banco certo
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
@@ -22,22 +24,60 @@ app.get('/api/insumos', async (req, res) => {
 });
 
 app.post('/api/insumos', async (req, res) => {
+    console.log("!!! --- INÍCIO DO DEBUG --- !!!");
+    console.log("1. Recebi requisição para criar:", req.body.nome);
+
     try {
-        // ATUALIZADO: Recebendo 'preco'
         const { nome, categoria, unidade, estoque, estoqueMinimo, preco } = req.body;
+        const nomeLimpo = nome.trim();
+
+        console.log("2. Nome limpo:", nomeLimpo);
+
+        // Verifica conexão com o banco
+        const contagem = await prisma.insumo.count();
+        console.log(`3. Total de insumos no banco agora: ${contagem}`);
+
+        // Tenta achar o duplicado
+        const insumoExistente = await prisma.insumo.findFirst({
+            where: {
+                nome: {
+                    equals: nomeLimpo,
+                    mode: 'insensitive'
+                }
+            }
+        });
+
+        console.log("4. Resultado da busca por duplicado:", insumoExistente);
+
+        if (insumoExistente) {
+            console.log("!!! BLOQUEADO PELO CÓDIGO !!!");
+            return res.status(400).json({
+                error: `Já existe um insumo chamado "${insumoExistente.nome}".`
+            });
+        }
+
+        console.log("5. Passou da validação, tentando salvar...");
 
         const novo = await prisma.insumo.create({
             data: {
-                nome,
+                nome: nomeLimpo,
                 categoria,
                 unidade: unidade || 'un',
                 estoque: Number(estoque),
                 estoqueMinimo: Number(estoqueMinimo),
-                preco: Number(preco || 0) // Salva o preço de custo
+                preco: Number(preco || 0)
             }
         });
+
+        console.log("6. Salvo com sucesso ID:", novo.id);
         res.json(novo);
-    } catch (error) {
+
+    } catch (error: any) {
+        console.error("!!! ERRO NO PROCESSO !!!", error);
+        if (error.code === 'P2002') {
+            console.log("!!! BLOQUEADO PELO BANCO DE DADOS (Unique Constraint) !!!");
+            return res.status(400).json({ error: 'ERRO CRÍTICO: O Banco bloqueou duplicidade.' });
+        }
         res.status(500).json({ error: 'Erro ao criar insumo' });
     }
 });
@@ -45,14 +85,37 @@ app.post('/api/insumos', async (req, res) => {
 app.put('/api/insumos/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        // ATUALIZADO: Garante que os números sejam convertidos corretamente
         const { nome, categoria, unidade, estoque, estoqueMinimo, preco } = req.body;
 
         const dadosAtualizar: any = {
-            nome,
             categoria,
             unidade
         };
+
+        // Se o usuário estiver tentando mudar o NOME, verificamos duplicidade
+        if (nome) {
+            const nomeLimpo = nome.trim();
+            dadosAtualizar.nome = nomeLimpo;
+
+            // Verifica se existe OUTRO insumo com esse nome (excluindo o próprio ID que estamos editando)
+            const insumoDuplicado = await prisma.insumo.findFirst({
+                where: {
+                    nome: {
+                        equals: nomeLimpo,
+                        mode: 'insensitive'
+                    },
+                    NOT: {
+                        id: Number(id) // Não conta ele mesmo
+                    }
+                }
+            });
+
+            if (insumoDuplicado) {
+                return res.status(400).json({
+                    error: `O nome "${nomeLimpo}" já está sendo usado por outro insumo.`
+                });
+            }
+        }
 
         if (estoque !== undefined) dadosAtualizar.estoque = Number(estoque);
         if (estoqueMinimo !== undefined) dadosAtualizar.estoqueMinimo = Number(estoqueMinimo);
@@ -64,6 +127,7 @@ app.put('/api/insumos/:id', async (req, res) => {
         });
         res.json(atualizado);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: 'Erro ao atualizar insumo' });
     }
 });
@@ -96,14 +160,25 @@ app.get('/api/produtos', async (req, res) => {
 
 app.post('/api/produtos', async (req, res) => {
     try {
-        // ATUALIZADO: Recebendo 'precoPromocional'
         const { nome, preco, categoria, fichaTecnica, precoPromocional } = req.body;
+        const nomeLimpo = nome.trim();
 
+        // 1. VALIDAÇÃO DE DUPLICIDADE (Antes de tentar salvar)
+        const produtoExistente = await prisma.produto.findFirst({
+            where: { nome: { equals: nomeLimpo, mode: 'insensitive' } }
+        });
+
+        if (produtoExistente) {
+            return res.status(400).json({
+                error: `Já existe um produto chamado "${produtoExistente.nome}".`
+            });
+        }
+
+        // 2. CRIAÇÃO
         const novo = await prisma.produto.create({
             data: {
-                nome,
+                nome: nomeLimpo,
                 preco: Number(preco),
-                // Se vier valor, salva número, se não, salva null
                 precoPromocional: precoPromocional ? Number(precoPromocional) : null,
                 categoria,
                 fichaTecnica: {
@@ -117,8 +192,9 @@ app.post('/api/produtos', async (req, res) => {
         });
         res.json(novo);
     } catch (error) {
+        // Se a validação manual falhar, o Prisma vai barrar aqui
         console.error(error);
-        res.status(500).json({ error: 'Erro ao criar produto' });
+        res.status(500).json({ error: 'Erro ao criar produto (possível duplicidade).' });
     }
 });
 
