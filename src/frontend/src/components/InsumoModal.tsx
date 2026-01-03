@@ -72,94 +72,100 @@ export function InsumoModal({ open, onClose, onSave, insumoToEdit, existingCateg
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>{isEditing ? 'Editar Insumo' : 'Novo Insumo'}</DialogTitle>
-            <DialogContent sx={{ pt: '20px !important' }}>
+            {/* Adicionamos o <form> e o onSubmit aqui */}
+            <form onSubmit={(e) => {
+                e.preventDefault(); // Impede o recarregamento da página
+                handleSubmit();     // Chama a função de salvar
+            }}>
+                <DialogTitle>{isEditing ? 'Editar Insumo' : 'Novo Insumo'}</DialogTitle>
+                <DialogContent sx={{ pt: '20px !important' }}>
 
-                <TextField
-                    autoFocus
-                    margin="dense"
-                    name="nome"
-                    label="Nome do Insumo"
-                    fullWidth
-                    variant="outlined"
-                    value={formData.nome}
-                    onChange={handleChange}
-                    sx={{ mb: 2 }}
-                />
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        name="nome"
+                        label="Nome do Insumo"
+                        fullWidth
+                        variant="outlined"
+                        value={formData.nome}
+                        onChange={handleChange}
+                        sx={{ mb: 2 }}
+                    />
 
-                {/* CAMPO CATEGORIA INTELIGENTE (AUTOCOMPLETE) */}
-                <Autocomplete
-                    freeSolo
-                    options={existingCategories}
-                    value={formData.categoria}
-                    onInputChange={(_event, newValue) => {
-                        setFormData((prev: any) => ({ ...prev, categoria: newValue }));
-                    }}
-                    renderInput={(params) => (
+                    <Autocomplete
+                        freeSolo
+                        options={existingCategories}
+                        value={formData.categoria}
+                        onInputChange={(_event, newValue) => {
+                            setFormData((prev: any) => ({ ...prev, categoria: newValue }));
+                        }}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Categoria"
+                                margin="dense"
+                                variant="outlined"
+                                fullWidth
+                                sx={{ mb: 2 }}
+                            />
+                        )}
+                    />
+
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                         <TextField
-                            {...params}
-                            label="Categoria"
-                            margin="dense"
-                            variant="outlined"
+                            name="estoque"
+                            label="Estoque Atual"
+                            type="number"
                             fullWidth
-                            sx={{ mb: 2 }}
+                            value={formData.estoque}
+                            onChange={handleChange}
                         />
-                    )}
-                />
+                        <TextField
+                            name="estoqueMinimo"
+                            label="Estoque Mínimo"
+                            type="number"
+                            fullWidth
+                            value={formData.estoqueMinimo}
+                            onChange={handleChange}
+                            helperText="Alerta quando baixar disso"
+                        />
+                    </Box>
 
-                <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                    <TextField
-                        name="estoque"
-                        label="Estoque Atual"
-                        type="number"
-                        fullWidth
-                        value={formData.estoque}
-                        onChange={handleChange}
-                    />
-                    <TextField
-                        name="estoqueMinimo"
-                        label="Estoque Mínimo"
-                        type="number"
-                        fullWidth
-                        value={formData.estoqueMinimo}
-                        onChange={handleChange}
-                        helperText="Alerta quando baixar disso"
-                    />
-                </Box>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                        <TextField
+                            select
+                            name="unidade"
+                            label="Unidade"
+                            fullWidth
+                            value={formData.unidade}
+                            onChange={handleChange}
+                        >
+                            {['un', 'kg', 'g', 'L', 'ml'].map((option) => (
+                                <MenuItem key={option} value={option}>
+                                    {option}
+                                </MenuItem>
+                            ))}
+                        </TextField>
 
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                    <TextField
-                        select
-                        name="unidade"
-                        label="Unidade"
-                        fullWidth
-                        value={formData.unidade}
-                        onChange={handleChange}
-                    >
-                        {['un', 'kg', 'g', 'L', 'ml'].map((option) => (
-                            <MenuItem key={option} value={option}>
-                                {option}
-                            </MenuItem>
-                        ))}
-                    </TextField>
+                        <TextField
+                            name="preco"
+                            label="Preço de Custo (R$)"
+                            type="number"
+                            fullWidth
+                            value={formData.preco}
+                            onChange={handleChange}
+                        />
+                    </Box>
 
-                    <TextField
-                        name="preco"
-                        label="Preço de Custo (R$)"
-                        type="number"
-                        fullWidth
-                        value={formData.preco}
-                        onChange={handleChange}
-                    />
-                </Box>
-
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Cancelar</Button>
-                <Button onClick={handleSubmit} variant="contained" color="primary">
-                    Salvar
-                </Button>
-            </DialogActions>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={onClose}>Cancelar</Button>
+                    {/* O botão agora é do tipo "submit" */}
+                    <Button type="submit" variant="contained" color="primary">
+                        Salvar
+                    </Button>
+                </DialogActions>
+            </form>
         </Dialog>
     );
 }

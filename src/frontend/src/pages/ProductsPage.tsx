@@ -950,26 +950,33 @@ export function ProductsPage() {
 
             {/* --- DIALOG PARA CRIAR NOVO GRUPO --- */}
             <Dialog open={isGroupDialogOpen} onClose={() => setIsGroupDialogOpen(false)}>
-                <DialogTitle>Criar Novo Grupo</DialogTitle>
-                <DialogContent>
-                    <Typography variant="body2" sx={{ mb: 2 }}>
-                        Digite o nome do novo grupo (ex: Bebidas, Temakis).
-                        Em seguida, você precisará cadastrar o primeiro produto deste grupo.
-                    </Typography>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Nome do Grupo"
-                        fullWidth
-                        variant="outlined"
-                        value={newGroupName}
-                        onChange={(e) => setNewGroupName(e.target.value)}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setIsGroupDialogOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleConfirmNewGroup} variant="contained">Criar e Adicionar Produto</Button>
-                </DialogActions>
+                {/* 1. Envolvemos em uma tag <form> e criamos um handler para o onSubmit */}
+                <form onSubmit={(e) => {
+                    e.preventDefault(); // Impede o recarregamento da página
+                    handleConfirmNewGroup(); // Chama a função que já existe
+                }}>
+                    <DialogTitle>Criar Novo Grupo</DialogTitle>
+                    <DialogContent>
+                        <Typography variant="body2" sx={{ mb: 2 }}>
+                            Digite o nome do novo grupo (ex: Bebidas, Temakis).
+                            Em seguida, você precisará cadastrar o primeiro produto deste grupo.
+                        </Typography>
+                        <TextField
+                            autoFocus
+                            margin="dense"
+                            label="Nome do Grupo"
+                            fullWidth
+                            variant="outlined"
+                            value={newGroupName}
+                            onChange={(e) => setNewGroupName(e.target.value)}
+                        />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setIsGroupDialogOpen(false)}>Cancelar</Button>
+                        {/* 2. O botão principal vira type="submit" */}
+                        <Button type="submit" variant="contained">Criar e Adicionar Produto</Button>
+                    </DialogActions>
+                </form>
             </Dialog>
         </Box>
     );

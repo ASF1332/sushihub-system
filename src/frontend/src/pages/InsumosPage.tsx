@@ -20,12 +20,14 @@ import {
     MenuItem,
     Select,
     CircularProgress,
+    InputAdornment,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SearchIcon from '@mui/icons-material/Search';
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import EditIcon from '@mui/icons-material/Edit';
@@ -159,6 +161,7 @@ const EditableCell = ({
 // --- COMPONENTE PRINCIPAL ---
 export function InsumosPage() {
     const [insumos, setInsumos] = useState<Insumo[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [showValues, setShowValues] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -223,9 +226,16 @@ export function InsumosPage() {
     }, [insumos]);
 
     const filteredInsumos = useMemo(() => {
-        if (!selectedCategory || !Array.isArray(insumos)) return [];
-        return insumos.filter(i => i.categoria === selectedCategory);
-    }, [insumos, selectedCategory]);
+        if (!Array.isArray(insumos)) return [];
+
+        if (searchTerm) {
+            return insumos.filter(i => i.nome.toLowerCase().includes(searchTerm.toLowerCase()));
+        }
+        if (selectedCategory) {
+            return insumos.filter(i => i.categoria === selectedCategory);
+        }
+        return []; // Retorna vazio se não houver filtro
+    }, [insumos, selectedCategory, searchTerm]);
 
     const valorTotalGeral = useMemo(() => {
         return insumos.reduce((acc, item) => acc + ((item.preco || 0) * (item.estoque || 0)), 0);
@@ -435,14 +445,14 @@ export function InsumosPage() {
 
             {/* CABEÇALHO */}
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2, flexWrap: 'wrap' }}>
-                {selectedCategory && (
-                    <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => setSelectedCategory(null)}>
+                {(selectedCategory || searchTerm) && (
+                    <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => { setSelectedCategory(null); setSearchTerm(''); }}>
                         Voltar
                     </Button>
                 )}
 
                 <Typography variant="h4" component="h1" sx={{ flexGrow: 0, mr: 2, fontWeight: 'bold' }}>
-                    {selectedCategory ? selectedCategory : 'Gestão de Insumos'}
+                    {searchTerm ? `Resultados para "${searchTerm}"` : (selectedCategory || 'Gestão de Insumos')}
                 </Typography>
 
                 <Chip
@@ -484,6 +494,20 @@ export function InsumosPage() {
                 </Button>
             </Box>
 
+            {/* --- BARRA DE PESQUISA ADICIONADA AQUI --- */}
+            <Paper sx={{ p: 2, mb: 3 }} elevation={1}>
+                <TextField
+                    fullWidth
+                    placeholder="Buscar insumo por nome..."
+                    variant="outlined"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    InputProps={{
+                        startAdornment: (<InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>)
+                    }}
+                />
+            </Paper>
+
             {/* LOADING E ERRO */}
             {loading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}
 
@@ -494,7 +518,7 @@ export function InsumosPage() {
             )}
 
             {/* VISÃO GERAL (CARDS) */}
-            {!loading && !error && !selectedCategory ? (
+            {!loading && !error && !selectedCategory && !searchTerm ? (
                 <>
                     <Grid container spacing={3} sx={{ mb: 6 }}>
                         {Object.entries(insumosPorCategoria).map(([categoria, itens]) => {
@@ -639,7 +663,7 @@ export function InsumosPage() {
             ) : null}
 
             {/* TABELA DETALHADA */}
-            {!loading && !error && selectedCategory ? (
+            {!loading && !error && (selectedCategory || searchTerm) ? (
                 <Paper sx={{ mt: 2 }}>
                     <TableContainer>
                         <Table>
@@ -764,27 +788,35 @@ export function InsumosPage() {
             {snackbar && (<Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}><Alert onClose={() => setSnackbar(null)} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert></Snackbar>)}
 
             {/* --- DIALOG PARA CRIAR NOVO GRUPO --- */}
+            {/* --- DIALOG PARA CRIAR NOVO GRUPO --- */}
             <Dialog open={isGroupDialogOpen} onClose={() => setIsGroupDialogOpen(false)}>
-                <DialogTitle>Criar Novo Grupo de Insumos</DialogTitle>
-                <DialogContent>
-                    <Typography variant="body2" sx={{ mb: 2 }}>
-                        Digite o nome do novo grupo (ex: Hortifruti, Embalagens).
-                        Em seguida, cadastre o primeiro insumo deste grupo.
-                    </Typography>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Nome do Grupo"
-                        fullWidth
-                        variant="outlined"
-                        value={newGroupName}
-                        onChange={(e) => setNewGroupName(e.target.value)}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setIsGroupDialogOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleConfirmNewGroup} variant="contained">Criar e Adicionar Insumo</Button>
-                </DialogActions>
+                {/* 1. Envolvemos em uma tag <form> e criamos um handler para o onSubmit */}
+                <form onSubmit={(e) => {
+                    e.preventDefault(); // Impede o recarregamento da página
+                    handleConfirmNewGroup(); // Chama a função que já existe
+                }}>
+                    <DialogTitle>Criar Novo Grupo de Insumos</DialogTitle>
+                    <DialogContent>
+                        <Typography variant="body2" sx={{ mb: 2 }}>
+                            Digite o nome do novo grupo (ex: Hortifruti, Embalagens).
+                            Em seguida, cadastre o primeiro insumo deste grupo.
+                        </Typography>
+                        <TextField
+                            autoFocus
+                            margin="dense"
+                            label="Nome do Grupo"
+                            fullWidth
+                            variant="outlined"
+                            value={newGroupName}
+                            onChange={(e) => setNewGroupName(e.target.value)}
+                        />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setIsGroupDialogOpen(false)}>Cancelar</Button>
+                        {/* 2. O botão principal vira type="submit" e não precisa mais do onClick */}
+                        <Button type="submit" variant="contained">Criar e Adicionar Insumo</Button>
+                    </DialogActions>
+                </form>
             </Dialog>
 
         </Box>

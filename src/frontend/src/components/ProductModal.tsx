@@ -11,7 +11,7 @@ import {
     Typography,
     Divider,
     Autocomplete,
-    MenuItem // Importante para o seletor de unidade
+    MenuItem
 } from '@mui/material';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -36,10 +36,9 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
     const [productData, setProductData] = useState<NewProductData | Produto>(emptyProduct);
     const [insumosList, setInsumosList] = useState<Insumo[]>([]);
 
-    // Estados para a área de adição
     const [selectedInsumo, setSelectedInsumo] = useState<Insumo | null>(null);
     const [qtdInsumo, setQtdInsumo] = useState<string>('');
-    const [tempUnit, setTempUnit] = useState<string>(''); // Novo estado para a Unidade
+    const [tempUnit, setTempUnit] = useState<string>('');
 
     useEffect(() => {
         if (open) {
@@ -54,7 +53,6 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
         if (productToEdit) setProductData(productToEdit);
         else setProductData(emptyProduct);
 
-        // Limpa os campos
         setSelectedInsumo(null);
         setQtdInsumo('');
         setTempUnit('');
@@ -81,7 +79,6 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
             fichaTecnica: [...prev.fichaTecnica, newItem]
         }));
 
-        // Limpa tudo após adicionar
         setSelectedInsumo(null);
         setQtdInsumo('');
         setTempUnit('');
@@ -99,148 +96,152 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-            <DialogTitle>
-                {productToEdit ? 'Editar Produto' : 'Novo Produto'}
-            </DialogTitle>
+            {/* 1. Tag <form> envolvendo todo o conteúdo do diálogo */}
+            <form onSubmit={(e) => {
+                e.preventDefault();
+                onSave(productData);
+            }}>
+                <DialogTitle>
+                    {productToEdit ? 'Editar Produto' : 'Novo Produto'}
+                </DialogTitle>
 
-            <DialogContent sx={{ pt: '20px !important' }}>
-                <TextField
-                    autoFocus
-                    name="nome"
-                    label="Nome do Produto"
-                    fullWidth
-                    value={productData.nome}
-                    onChange={handleChange}
-                    sx={{ mb: 2 }}
-                />
-
-                <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                    <Autocomplete
-                        freeSolo
-                        options={existingCategories}
-                        value={productData.categoria}
-                        onInputChange={(_event, newValue) => {
-                            setProductData(prev => ({ ...prev, categoria: newValue }));
-                        }}
-                        fullWidth
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Categoria (ex: Temakis, Combos)"
-                                inputProps={{
-                                    ...params.inputProps,
-                                    autoComplete: 'off',
-                                }}
-                            />
-                        )}
-                    />
-
+                <DialogContent sx={{ pt: '20px !important' }}>
                     <TextField
-                        name="preco"
-                        label="Preço (R$)"
-                        type="number"
+                        autoFocus
+                        name="nome"
+                        label="Nome do Produto"
                         fullWidth
-                        value={productData.preco}
+                        value={productData.nome}
                         onChange={handleChange}
+                        sx={{ mb: 2 }}
                     />
-                </Box>
 
-                <Divider sx={{ my: 2 }}>
-                    <Typography variant="caption" color="text.secondary">FICHA TÉCNICA (BAIXA DE ESTOQUE)</Typography>
-                </Divider>
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                        <Autocomplete
+                            freeSolo
+                            options={existingCategories}
+                            value={productData.categoria}
+                            onInputChange={(_event, newValue) => {
+                                setProductData(prev => ({ ...prev, categoria: newValue }));
+                            }}
+                            fullWidth
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Categoria (ex: Temakis, Combos)"
+                                    inputProps={{
+                                        ...params.inputProps,
+                                        autoComplete: 'off',
+                                    }}
+                                />
+                            )}
+                        />
 
-                {productData.fichaTecnica.length === 0 && (
-                    <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 2 }}>
-                        Nenhum insumo vinculado. O estoque não será baixado ao vender este produto.
-                    </Typography>
-                )}
-
-                {productData.fichaTecnica.map(item => (
-                    <Box key={item.insumoId} sx={{ display: 'flex', alignItems: 'center', mt: 1, bgcolor: '#f5f5f5', p: 1, borderRadius: 1 }}>
-                        <Typography sx={{ flexGrow: 1, fontWeight: 'bold' }}>
-                            {getInsumoName(item.insumoId)}
-                        </Typography>
-                        <Typography sx={{ mr: 2 }}>
-                            {item.quantidade} {getInsumoUnidade(item.insumoId)}
-                        </Typography>
-                        <IconButton onClick={() => handleRemoveInsumo(item.insumoId)} color="error" size="small">
-                            <DeleteIcon />
-                        </IconButton>
+                        <TextField
+                            name="preco"
+                            label="Preço (R$)"
+                            type="number"
+                            fullWidth
+                            value={productData.preco}
+                            onChange={handleChange}
+                        />
                     </Box>
-                ))}
 
-                {/* --- ÁREA DE ADICIONAR INSUMO (ATUALIZADA) --- */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 3, p: 2, border: '1px dashed #ccc', borderRadius: 2 }}>
+                    <Divider sx={{ my: 2 }}>
+                        <Typography variant="caption" color="text.secondary">FICHA TÉCNICA (BAIXA DE ESTOQUE)</Typography>
+                    </Divider>
 
-                    <Autocomplete
-                        options={insumosList}
-                        getOptionLabel={(option) => `${option.nome}`}
-                        value={selectedInsumo}
-                        onChange={(_event, newValue) => {
-                            setSelectedInsumo(newValue);
-                            // Auto-seleciona a unidade quando escolhe o insumo
-                            if (newValue) setTempUnit(newValue.unidade);
-                        }}
-                        componentsProps={{
-                            popper: {
-                                modifiers: [{ name: 'flip', enabled: false }]
-                            }
-                        }}
-                        fullWidth
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Selecionar Insumo..."
-                                placeholder="Digite para pesquisar"
-                                inputProps={{
-                                    ...params.inputProps,
-                                    autoComplete: 'off',
-                                }}
-                            />
-                        )}
-                    />
+                    {productData.fichaTecnica.length === 0 && (
+                        <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 2 }}>
+                            Nenhum insumo vinculado. O estoque não será baixado ao vender este produto.
+                        </Typography>
+                    )}
 
-                    <TextField
-                        label="Qtd"
-                        type="number"
-                        size="small"
-                        sx={{ width: '100px' }}
-                        value={qtdInsumo}
-                        onChange={e => setQtdInsumo(e.target.value)}
-                    />
+                    {productData.fichaTecnica.map(item => (
+                        <Box key={item.insumoId} sx={{ display: 'flex', alignItems: 'center', mt: 1, bgcolor: '#f5f5f5', p: 1, borderRadius: 1 }}>
+                            <Typography sx={{ flexGrow: 1, fontWeight: 'bold' }}>
+                                {getInsumoName(item.insumoId)}
+                            </Typography>
+                            <Typography sx={{ mr: 2 }}>
+                                {item.quantidade} {getInsumoUnidade(item.insumoId)}
+                            </Typography>
+                            <IconButton onClick={() => handleRemoveInsumo(item.insumoId)} color="error" size="small">
+                                <DeleteIcon />
+                            </IconButton>
+                        </Box>
+                    ))}
 
-                    {/* --- CAMPO UNIDADE ADICIONADO AQUI --- */}
-                    <TextField
-                        select
-                        label="Unid"
-                        size="small"
-                        sx={{ width: '100px' }}
-                        value={tempUnit}
-                        onChange={(e) => setTempUnit(e.target.value)}
-                    >
-                        {['un', 'kg', 'g', 'L', 'ml'].map((option) => (
-                            <MenuItem key={option} value={option}>
-                                {option}
-                            </MenuItem>
-                        ))}
-                    </TextField>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 3, p: 2, border: '1px dashed #ccc', borderRadius: 2 }}>
 
-                    <Button
-                        variant="contained"
-                        onClick={handleAddInsumo}
-                        startIcon={<AddCircleIcon />}
-                        disabled={!selectedInsumo || !qtdInsumo}
-                    >
-                        Adicionar
+                        <Autocomplete
+                            options={insumosList}
+                            getOptionLabel={(option) => `${option.nome}`}
+                            value={selectedInsumo}
+                            onChange={(_event, newValue) => {
+                                setSelectedInsumo(newValue);
+                                if (newValue) setTempUnit(newValue.unidade);
+                            }}
+                            componentsProps={{
+                                popper: {
+                                    modifiers: [{ name: 'flip', enabled: false }]
+                                }
+                            }}
+                            fullWidth
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Selecionar Insumo..."
+                                    placeholder="Digite para pesquisar"
+                                    inputProps={{
+                                        ...params.inputProps,
+                                        autoComplete: 'off',
+                                    }}
+                                />
+                            )}
+                        />
+
+                        <TextField
+                            label="Qtd"
+                            type="number"
+                            size="small"
+                            sx={{ width: '100px' }}
+                            value={qtdInsumo}
+                            onChange={e => setQtdInsumo(e.target.value)}
+                        />
+
+                        <TextField
+                            select
+                            label="Unid"
+                            size="small"
+                            sx={{ width: '100px' }}
+                            value={tempUnit}
+                            onChange={(e) => setTempUnit(e.target.value)}
+                        >
+                            {['un', 'kg', 'g', 'L', 'ml'].map((option) => (
+                                <MenuItem key={option} value={option}>
+                                    {option}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+
+                        <Button
+                            variant="contained"
+                            onClick={handleAddInsumo}
+                            startIcon={<AddCircleIcon />}
+                            disabled={!selectedInsumo || !qtdInsumo}
+                        >
+                            Adicionar
+                        </Button>
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={onClose}>Cancelar</Button>
+                    {/* 2. Botão principal agora é do tipo "submit" */}
+                    <Button type="submit" variant="contained" color="primary">
+                        Salvar Produto
                     </Button>
-                </Box>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Cancelar</Button>
-                <Button onClick={() => onSave(productData)} variant="contained" color="primary">
-                    Salvar Produto
-                </Button>
-            </DialogActions>
+                </DialogActions>
+            </form>
         </Dialog>
     );
 }
