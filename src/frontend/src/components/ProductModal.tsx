@@ -19,7 +19,7 @@ import type { NewProductData } from '../pages/ProductsPage';
 
 // Interfaces locais
 interface Insumo { id: number; nome: string; unidade: string; }
-interface FichaTecnicaItem { insumoId: number; quantidade: number; }
+interface FichaTecnicaItem { insumoId: number; quantidade: number; medida: string; }
 interface Produto { id: number; nome: string; preco: number; categoria: string; fichaTecnica: FichaTecnicaItem[]; }
 
 interface ProductModalProps {
@@ -67,11 +67,13 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
     };
 
     const handleAddInsumo = () => {
-        if (!selectedInsumo || !qtdInsumo) return;
+        // Adicionei a verificação !tempUnit para garantir que tenha unidade
+        if (!selectedInsumo || !qtdInsumo || !tempUnit) return;
 
         const newItem: FichaTecnicaItem = {
             insumoId: selectedInsumo.id,
-            quantidade: Number(qtdInsumo)
+            quantidade: Number(qtdInsumo),
+            unidade: tempUnit // Salva a unidade selecionada no modal
         };
 
         setProductData(prev => ({
@@ -163,7 +165,7 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
                                 {getInsumoName(item.insumoId)}
                             </Typography>
                             <Typography sx={{ mr: 2 }}>
-                                {item.quantidade} {getInsumoUnidade(item.insumoId)}
+                                {item.quantidade} {item.unidade || getInsumoUnidade(item.insumoId)}
                             </Typography>
                             <IconButton onClick={() => handleRemoveInsumo(item.insumoId)} color="error" size="small">
                                 <DeleteIcon />
@@ -179,7 +181,6 @@ export function ProductModal({ open, onClose, onSave, productToEdit, existingCat
                             value={selectedInsumo}
                             onChange={(_event, newValue) => {
                                 setSelectedInsumo(newValue);
-                                if (newValue) setTempUnit(newValue.unidade);
                             }}
                             componentsProps={{
                                 popper: {

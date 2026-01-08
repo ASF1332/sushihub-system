@@ -1,8 +1,5 @@
-// Arquivo: src/backend/prisma/schema.prisma
-
 generator client {
   provider      = "prisma-client-js"
-  // Esta linha é a mágica para funcionar no Windows (native) e no Render (debian)
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
@@ -11,67 +8,57 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- Tabela de Insumos (Estoque) ---
 model Insumo {
-  id            Int    @id @default(autoincrement())
-  nome          String @unique
+  id            Int            @id @default(autoincrement())
+  nome          String         @unique
   categoria     String
-  unidade       String @default("un")
-  estoque       Float  @default(0)
-  estoqueMinimo Float  @default(0)
-  preco         Float  @default(0)
-
-  produtos FichaTecnica[]
+  unidade       String         @default("un")
+  estoque       Float          @default(0)
+  estoqueMinimo Float          @default(0)
+  preco         Float          @default(0)
+  produtos      FichaTecnica[]
 }
 
-// --- Tabela de Produtos (Cardápio) ---
 model Produto {
-  id        Int    @id @default(autoincrement())
-  nome      String
-  preco     Float
-  categoria String
-
-  precoPromocional Float? // O "?" significa que pode ser nulo (sem promoção)
+  id               Int            @id @default(autoincrement())
+  nome             String
+  preco            Float
+  categoria        String
+  precoPromocional Float?
   fichaTecnica     FichaTecnica[]
   itensPedido      ItemPedido[]
 }
 
-// --- Tabela Pivot (Ficha Técnica) ---
 model FichaTecnica {
-  id         Int   @id @default(autoincrement())
+  id         Int     @id @default(autoincrement())
   produtoId  Int
   insumoId   Int
   quantidade Float
-
-  produto Produto @relation(fields: [produtoId], references: [id])
-  insumo  Insumo  @relation(fields: [insumoId], references: [id])
+  medida     String
+  insumo     Insumo  @relation(fields: [insumoId], references: [id])
+  produto    Produto @relation(fields: [produtoId], references: [id])
 }
 
-// --- Tabela de Pedidos ---
 model Pedido {
-  id       Int      @id @default(autoincrement())
+  id       Int          @id @default(autoincrement())
   cliente  String
   telefone String?
   canal    String
   status   String
   valor    Float
-  dataHora DateTime @default(now())
-
-  itens ItemPedido[]
+  dataHora DateTime     @default(now())
+  itens    ItemPedido[]
 }
 
-// --- Tabela de Itens do Pedido ---
 model ItemPedido {
-  id         Int @id @default(autoincrement())
+  id         Int     @id @default(autoincrement())
   pedidoId   Int
   produtoId  Int
   quantidade Int
-
-  pedido  Pedido  @relation(fields: [pedidoId], references: [id])
-  produto Produto @relation(fields: [produtoId], references: [id])
+  pedido     Pedido  @relation(fields: [pedidoId], references: [id])
+  produto    Produto @relation(fields: [produtoId], references: [id])
 }
 
-// --- Tabela de Clientes ---
 model Cliente {
   id          Int     @id @default(autoincrement())
   nome        String

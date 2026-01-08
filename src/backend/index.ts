@@ -1,3 +1,4 @@
+import 'dotenv/config';
 console.log("🔥🔥🔥 ESTOU RODANDO O CÓDIGO NOVO! SE NÃO APARECER ISSO, ESTÁ ERRADO! 🔥🔥🔥");
 console.log("DATABASE URL USADA:", process.env.DATABASE_URL); // Vamos conferir se está no banco certo
 import express from 'express';
@@ -195,7 +196,9 @@ app.delete('/api/insumos/:id', async (req, res) => {
 app.get('/api/produtos', async (req, res) => {
     try {
         const produtos = await prisma.produto.findMany({
-            include: { fichaTecnica: true },
+            include: {
+                fichaTecnica: true // Isso já deve trazer a unidade se ela estiver no schema
+            },
             orderBy: { nome: 'asc' }
         });
         res.json(produtos);
@@ -230,7 +233,8 @@ app.post('/api/produtos', async (req, res) => {
                 fichaTecnica: {
                     create: fichaTecnica.map((item: any) => ({
                         insumoId: Number(item.insumoId),
-                        quantidade: Number(item.quantidade)
+                        quantidade: Number(item.quantidade),
+                        medida: item.medida || item.unidade || 'un'
                     }))
                 }
             },
@@ -246,8 +250,9 @@ app.post('/api/produtos', async (req, res) => {
 
 app.put('/api/produtos/:id', async (req, res) => {
     const { id } = req.params;
-    // ATUALIZADO: Recebendo 'precoPromocional'
     const { nome, preco, categoria, fichaTecnica, precoPromocional } = req.body;
+
+    console.log(`[PUT] Atualizando produto ID ${id}...`);
 
     try {
         const atualizado = await prisma.produto.update({
@@ -258,19 +263,27 @@ app.put('/api/produtos/:id', async (req, res) => {
                 precoPromocional: precoPromocional ? Number(precoPromocional) : null,
                 categoria,
                 fichaTecnica: {
-                    deleteMany: {}, // Limpa ficha antiga
+                    // 1. Limpa a ficha antiga
+                    deleteMany: {},
+                    // 2. Cria a nova
                     create: fichaTecnica.map((item: any) => ({
                         insumoId: Number(item.insumoId),
-                        quantidade: Number(item.quantidade)
+                        quantidade: Number(item.quantidade),
+                        // BLINDAGEM: Aceita 'medida' (novo), 'unidade' (velho) ou assume 'un'
+                        medida: item.medida || item.unidade || 'un'
                     }))
                 }
             },
             include: { fichaTecnica: true }
         });
+
+        console.log("✅ Produto atualizado com sucesso!");
         res.json(atualizado);
+
     } catch (error) {
-        console.error("Erro ao atualizar produto:", error);
-        res.status(500).json({ error: 'Erro ao atualizar produto' });
+        // AQUI VAI APARECER O ERRO REAL NO SEU TERMINAL
+        console.error("❌ ERRO AO SALVAR PRODUTO:", error);
+        res.status(500).json({ error: 'Erro interno ao salvar produto. Veja o terminal.' });
     }
 });
 

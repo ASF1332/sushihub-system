@@ -21,7 +21,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 // --- TIPOS ---
 interface Insumo { id: number; nome: string; unidade: string; preco: number; }
-interface FichaTecnicaItem { insumoId: number; quantidade: number; }
+interface FichaTecnicaItem { insumoId: number; quantidade: number; medida: string; }
 interface Produto {
     id: number;
     nome: string;
@@ -168,16 +168,27 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
 
     // --- AÇÕES ---
     const handleAddInsumo = () => {
+        // 1. Validação básica
         if (!selectedInsumoId || !qtdInsumo) return;
 
-        const insumoOriginal = allInsumos.find(i => i.id === selectedInsumoId);
-        if (insumoOriginal && tempUnit && tempUnit !== insumoOriginal.unidade) {
-            onUpdateInsumoGlobal(Number(selectedInsumoId), { unidade: tempUnit });
-        }
+        // 2. Busca o insumo original para pegar a unidade padrão dele se precisar
+        const insumoOriginal = allInsumos.find(i => i.id === Number(selectedInsumoId));
 
-        const novaFicha = [...row.fichaTecnica, { insumoId: Number(selectedInsumoId), quantidade: Number(qtdInsumo) }];
+        // 3. CRIA A VARIÁVEL QUE ESTAVA FALTANDO (unidadeFinal)
+        // Usa a que você selecionou (tempUnit) OU a do cadastro (insumoOriginal) OU 'un'
+        const unidadeFinal = tempUnit || insumoOriginal?.unidade || 'un';
+
+        // 4. Cria o novo item usando a variável criada acima
+        const novaFicha = [...row.fichaTecnica, {
+            insumoId: Number(selectedInsumoId),
+            quantidade: Number(qtdInsumo),
+            medida: unidadeFinal // <--- Agora ele sabe quem é unidadeFinal
+        }];
+
+        // 5. Atualiza o produto
         onUpdateProduct({ ...row, fichaTecnica: novaFicha });
 
+        // 6. Limpa os campos
         setSelectedInsumoId('');
         setQtdInsumo('');
         setTempUnit('');
@@ -195,20 +206,19 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
     // Salvar Insumos (Tabela Interna)
     const handleInsumoSave = (insumoId: number, field: string, value: any) => {
         setEditingCell(null);
-        if (field === 'quantidade') {
+
+        if (field === 'quantidade' || field === 'medida') {
             const novaFicha = row.fichaTecnica.map(item =>
-                item.insumoId === insumoId ? { ...item, quantidade: Number(value) } : item
+                item.insumoId === insumoId
+                    ? { ...item, [field]: field === 'quantidade' ? Number(value) : String(value) }
+                    : item
             );
+
+            // Importante: Verifique se o onUpdateProduct está recebendo a novaFicha corretamente
             onUpdateProduct({ ...row, fichaTecnica: novaFicha });
         }
-        else if (field === 'preco' || field === 'unidade') {
-            const insumoAtual = allInsumos.find(i => i.id === insumoId);
-            if (insumoAtual) {
-                const dadosAtualizados: Partial<Insumo> = {};
-                if (field === 'preco') dadosAtualizados.preco = Number(value);
-                if (field === 'unidade') dadosAtualizados.unidade = value;
-                onUpdateInsumoGlobal(insumoId, dadosAtualizados);
-            }
+        else if (field === 'preco') {
+            onUpdateInsumoGlobal(insumoId, { preco: Number(value) });
         }
     };
 
@@ -242,6 +252,7 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
         }
         onUpdateProduct(updatedProduct);
     };
+    console.log(`Produto: ${row.nome}`, row.fichaTecnica);
 
     return (
         <>
@@ -334,7 +345,7 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
                                         const custoTotalItem = calculateSmartCost(
                                             insumoReal?.preco || 0,
                                             fichaItem.quantidade,
-                                            insumoReal?.unidade || ''
+                                            fichaItem.unidade || insumoReal?.unidade || ''
                                         );
 
                                         return (
@@ -351,9 +362,11 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
                                                     onCancel={() => setEditingCell(null)}
                                                 />
 
+                                                {/* Célula de UNIDADE (ALTERADA: Lógica idêntica à Quantidade) */}
                                                 <EditableCell
-                                                    value={insumoReal?.unidade || ''}
+                                                    value={fichaItem.medida}
                                                     align="right"
+                                                    // Mantive options para facilitar a digitação, mas o valor vem direto do item
                                                     options={['un', 'kg', 'g', 'L', 'ml']}
                                                     isEditing={editingCell?.type === 'insumo' && editingCell?.id === fichaItem.insumoId && editingCell?.field === 'unidade'}
                                                     onDoubleClick={() => setEditingCell({ type: 'insumo', id: fichaItem.insumoId, field: 'unidade' })}
@@ -433,7 +446,7 @@ function ProductRow({ row, allInsumos, onUpdateProduct, onUpdateInsumoGlobal, on
                                     value={allInsumos.find(i => i.id === selectedInsumoId) || null}
                                     onChange={(_event, newValue) => {
                                         setSelectedInsumoId(newValue ? newValue.id : '');
-                                        setTempUnit(newValue ? newValue.unidade : '');
+                                        setTempUnit('');
                                     }}
                                     renderInput={(params) => (
                                         <TextField {...params} label="Adicionar Ingrediente..." placeholder="Digite para buscar" />
